@@ -53,14 +53,14 @@ function Dashboard() {
     queryKey:
       mode === "preset"
         ? ["dashboard", "preset", days]
-        : ["dashboard", "custom", startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)],
+        : ["dashboard", "custom", startDate!.toISOString().slice(0, 10), endDate!.toISOString().slice(0, 10)],
     queryFn: () =>
       mode === "preset"
         ? fetchData({ data: { days } })
         : fetchData({
             data: {
-              startDate: startDate.toISOString().slice(0, 10),
-              endDate: endDate.toISOString().slice(0, 10),
+              startDate: startDate!.toISOString().slice(0, 10),
+              endDate: endDate!.toISOString().slice(0, 10),
             },
           }),
     enabled: mode === "preset" || (!!startDate && !!endDate),
