@@ -38,34 +38,87 @@ const PIE_COLORS = [
   "oklch(0.7 0.18 320)", "oklch(0.7 0.18 180)", "oklch(0.7 0.18 50)",
 ];
 
+type RangeMode = "preset" | "custom";
+
 function Dashboard() {
+  const [mode, setMode] = useState<RangeMode>("preset");
   const [days, setDays] = useState(90);
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const [startDate, setStartDate] = useState<Date>(thirtyDaysAgo);
+  const [endDate, setEndDate] = useState<Date>(new Date());
+
   const fetchData = useServerFn(getDashboardData);
   const opts = queryOptions({
-    queryKey: ["dashboard", days],
-    queryFn: () => fetchData({ data: { days } }),
+    queryKey:
+      mode === "preset"
+        ? ["dashboard", "preset", days]
+        : ["dashboard", "custom", startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10)],
+    queryFn: () =>
+      mode === "preset"
+        ? fetchData({ data: { days } })
+        : fetchData({
+            data: {
+              startDate: startDate.toISOString().slice(0, 10),
+              endDate: endDate.toISOString().slice(0, 10),
+            },
+          }),
+    enabled: mode === "preset" || (!!startDate && !!endDate),
   });
   const { data, isLoading } = useQuery(opts);
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
-      <header className="mb-8 flex items-center justify-between flex-wrap gap-4">
+      <header className="mb-8 flex items-start md:items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Visão geral</h1>
           <p className="text-sm text-muted-foreground mt-1">Seu panorama financeiro em tempo real.</p>
         </div>
-        <div className="flex gap-1 surface-card p-1">
+        <div className="flex flex-wrap items-center gap-2 surface-card p-1">
           {RANGES.map((r) => (
             <button
               key={r.value}
-              onClick={() => setDays(r.value)}
+              onClick={() => {
+                setMode("preset");
+                setDays(r.value);
+              }}
               className={`px-3 py-1.5 rounded-lg text-xs transition ${
-                days === r.value ? "bg-primary/20 text-foreground" : "text-muted-foreground hover:text-foreground"
+                mode === "preset" && days === r.value
+                  ? "bg-primary/20 text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {r.label}
             </button>
           ))}
+          <button
+            onClick={() => setMode("custom")}
+            className={`px-3 py-1.5 rounded-lg text-xs transition ${
+              mode === "custom"
+                ? "bg-primary/20 text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Personalizado
+          </button>
+          {mode === "custom" && (
+            <div className="flex items-center gap-2 pl-2 border-l border-border w-full md:w-auto">
+              <DatePicker
+                date={startDate}
+                onChange={setStartDate}
+                label="De"
+                maxDate={endDate}
+              />
+              <span className="text-muted-foreground text-xs">até</span>
+              <DatePicker
+                date={endDate}
+                onChange={setEndDate}
+                label="Até"
+                minDate={startDate}
+                maxDate={new Date()}
+              />
+            </div>
+          )}
         </div>
       </header>
 
@@ -181,6 +234,51 @@ function Dashboard() {
         </>
       )}
     </div>
+  );
+}
+
+function DatePicker({
+  date,
+  onChange,
+  label,
+  minDate,
+  maxDate,
+}: {
+  date: Date | undefined;
+  onChange: (d: Date | undefined) => void;
+  label: string;
+  minDate?: Date;
+  maxDate?: Date;
+}) {
+  const disabled: { before?: Date; after?: Date }[] = [];
+  if (minDate) disabled.push({ before: minDate });
+  if (maxDate) disabled.push({ after: maxDate });
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "h-8 px-2 justify-start text-left text-xs font-normal min-w-[110px]",
+            !date && "text-muted-foreground",
+          )}
+        >
+          <CalendarIcon className="mr-1 size-3.5" />
+          {date ? format(date, "dd/MM/yyyy") : <span>{label}</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={onChange}
+          disabled={disabled.length > 0 ? disabled : undefined}
+          initialFocus
+          className="pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
