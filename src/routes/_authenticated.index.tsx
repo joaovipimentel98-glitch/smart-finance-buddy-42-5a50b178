@@ -248,6 +248,7 @@ function DatePicker({
       <PopoverTrigger asChild>
         <Button
           variant="outline"
+          aria-label={label}
           className={cn(
             "h-8 px-2 justify-start text-left text-xs font-normal min-w-[110px]",
             !date && "text-muted-foreground",
