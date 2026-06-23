@@ -117,7 +117,20 @@ function logStep(reqId: string, step: string, info: Record<string, unknown> = {}
   console.log(`[import:${reqId}] ${step}`, JSON.stringify(info));
 }
 
-export const importFile = createServerFn({ method: "POST" })
+// ============ PREVIEW: parse + categorize, NO DB writes ============
+
+export type PreviewTxn = {
+  date: string;
+  description: string;
+  merchant: string;
+  amount: number;
+  transaction_type: "credit" | "debit";
+  category: string;
+  subcategory?: string;
+  confidence: number;
+};
+
+export const previewImport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ImportInput.parse(d))
   .handler(async ({ data, context }) => {
@@ -125,78 +138,36 @@ export const importFile = createServerFn({ method: "POST" })
     const reqId = Math.random().toString(36).slice(2, 8);
     const t0 = Date.now();
     const kind = detectKind(data.fileName, data.fileType);
-    const sizeKb = Math.round((data.base64.length * 3) / 4 / 1024);
-    let step: string = "start";
-    let fileRowId: string | null = null;
-
-    const failHere = async (err: unknown): Promise<never> => {
-      const msg = err instanceof Error ? err.message : String(err);
-      const stack = err instanceof Error ? err.stack : undefined;
-      console.error(`[import:${reqId}] FAILED at step="${step}" message="${msg}"`, stack ?? "");
-      if (fileRowId) {
-        await supabase.from("uploaded_files").update({
-          processed: true,
-          observations: `Falhou na etapa [${step}]: ${msg}`.slice(0, 500),
-        }).eq("id", fileRowId).then(() => {}, (e) => console.error(`[import:${reqId}] could not persist failure`, e));
-      }
-      throw new Error(`[${step}] ${msg}`);
-    };
+    let step = "start";
 
     try {
-      logStep(reqId, "start", { fileName: data.fileName, mime: data.fileType, kind, sizeKb, userId });
+      logStep(reqId, "preview-start", { fileName: data.fileName, mime: data.fileType, kind });
 
-      // 1. Register the upload
-      step = "register-upload";
-      const { data: fileRow, error: fileErr } = await supabase
-        .from("uploaded_files")
-        .insert({ user_id: userId, file_name: data.fileName, file_type: kind, processed: false })
-        .select("id, import_batch")
-        .single();
-      if (fileErr || !fileRow) throw new Error(fileErr?.message ?? "Falha ao registrar arquivo no banco");
-      fileRowId = fileRow.id;
-      logStep(reqId, "registered", { fileId: fileRow.id, batch: fileRow.import_batch });
-
-      // 2. Detect kind / validate
       step = "detect-kind";
-      if (kind === "unknown") {
-        throw new Error(`Tipo de arquivo não suportado (nome="${data.fileName}", mime="${data.fileType}"). Use OFX, CSV, XLSX, PDF ou imagem.`);
-      }
+      if (kind === "unknown") throw new Error(`Tipo de arquivo não suportado (nome="${data.fileName}", mime="${data.fileType}").`);
 
-      // 3. Parse
       step = `parse-${kind}`;
       const { parseCSV, parseOFX, parseXLSX } = await import("./parsers.server");
       let raw: ParsedTxn[] = [];
-      const tParse = Date.now();
       if (kind === "csv") raw = parseCSV(decodeBase64ToString(data.base64));
       else if (kind === "ofx") raw = parseOFX(decodeBase64ToString(data.base64));
       else if (kind === "xlsx") raw = parseXLSX(decodeBase64ToArrayBuffer(data.base64));
       else if (kind === "pdf" || kind === "image") raw = await extractFromImageOrPdf(data.base64, data.fileType);
-      logStep(reqId, "parsed", { count: raw.length, ms: Date.now() - tParse });
+      logStep(reqId, "parsed", { count: raw.length });
 
       if (raw.length === 0) {
-        step = "no-transactions";
-        await supabase.from("uploaded_files").update({
-          processed: true,
-          observations: "Nenhuma transação encontrada no arquivo.",
-        }).eq("id", fileRow.id);
-        logStep(reqId, "done-empty", { ms: Date.now() - t0 });
-        return { imported: 0, fileId: fileRow.id, reqId, step: "no-transactions" };
+        return { txns: [] as PreviewTxn[], reqId, fileName: data.fileName, fileType: data.fileType };
       }
 
-      // 4. Load category rules
       step = "load-rules";
-      const { data: rules, error: rulesErr } = await supabase
+      const { data: rules } = await supabase
         .from("category_rules")
         .select("merchant_pattern, category, subcategory, confidence")
         .eq("user_id", userId);
-      if (rulesErr) throw new Error(`Erro ao carregar regras: ${rulesErr.message}`);
-      logStep(reqId, "rules-loaded", { ruleCount: rules?.length ?? 0 });
 
-      // 5. Categorize (rules + heuristics)
       step = "categorize-heuristic";
       const { heuristicCategory } = await import("./categorize.server");
-      type Enriched = ParsedTxn & { category: string; subcategory?: string; confidence: number };
-      const enriched: Enriched[] = [];
+      const enriched: PreviewTxn[] = [];
       const needAi: number[] = [];
       raw.forEach((t, i) => {
         const desc = t.description.toUpperCase();
@@ -210,15 +181,22 @@ export const importFile = createServerFn({ method: "POST" })
           }
         }
         if (!matched) matched = heuristicCategory(t.description);
-        if (matched) enriched.push({ ...t, ...matched });
-        else { enriched.push({ ...t, category: "Outros", confidence: 0.3 }); needAi.push(i); }
+        const base: PreviewTxn = {
+          date: t.date,
+          description: t.description,
+          merchant: t.merchant ?? t.description.slice(0, 80),
+          amount: t.amount,
+          transaction_type: t.transaction_type,
+          category: matched?.category ?? "Outros",
+          subcategory: matched?.subcategory,
+          confidence: matched?.confidence ?? 0.3,
+        };
+        enriched.push(base);
+        if (!matched) needAi.push(i);
       });
-      logStep(reqId, "heuristic-done", { total: enriched.length, needAi: needAi.length });
 
-      // 6. AI fallback categorization
       if (needAi.length > 0 && needAi.length <= 100) {
         step = "categorize-ai";
-        const tAi = Date.now();
         try {
           const aiResults = await aiCategorize(needAi.map((i) => ({ description: enriched[i].description })));
           needAi.forEach((idx, j) => {
@@ -229,47 +207,86 @@ export const importFile = createServerFn({ method: "POST" })
               enriched[idx].confidence = r.confidence;
             }
           });
-          logStep(reqId, "ai-categorize-done", { count: aiResults.length, ms: Date.now() - tAi });
         } catch (e) {
-          // Não derruba o import — apenas registra
-          console.warn(`[import:${reqId}] AI categorize falhou (mantendo "Outros"):`, e);
+          console.warn(`[import:${reqId}] AI categorize falhou:`, e);
         }
       }
 
-      // 7. Insert transactions
-      step = "insert-transactions";
-      const rows = enriched.map((t) => ({
-        user_id: userId,
-        date: t.date,
-        description: t.description,
-        merchant: t.merchant ?? t.description.slice(0, 60),
-        amount: t.amount,
-        transaction_type: t.transaction_type,
-        category: t.category,
-        subcategory: t.subcategory,
-        source_file: data.fileName,
-        import_batch: fileRow.import_batch,
-        confidence: t.confidence,
-      }));
-      const tIns = Date.now();
-      const { error: insertErr } = await supabase.from("transactions").insert(rows);
-      if (insertErr) throw new Error(`Erro ao salvar transações: ${insertErr.message}`);
-      logStep(reqId, "inserted", { count: rows.length, ms: Date.now() - tIns });
-
-      // 8. Finalize
-      step = "finalize";
-      await supabase.from("uploaded_files").update({
-        processed: true,
-        records_found: rows.length,
-        observations: `${rows.length} transações importadas`,
-      }).eq("id", fileRow.id);
-      logStep(reqId, "done", { imported: rows.length, totalMs: Date.now() - t0 });
-
-      return { imported: rows.length, fileId: fileRow.id, reqId, step: "done" };
+      logStep(reqId, "preview-done", { count: enriched.length, totalMs: Date.now() - t0 });
+      return { txns: enriched, reqId, fileName: data.fileName, fileType: data.fileType };
     } catch (e) {
-      return failHere(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[import:${reqId}] PREVIEW FAILED at step="${step}"`, e);
+      throw new Error(`[${step}] ${msg}`);
     }
   });
+
+// ============ COMMIT: insert user-confirmed transactions ============
+
+const CommitInput = z.object({
+  fileName: z.string().min(1),
+  fileType: z.string().min(1),
+  txns: z.array(z.object({
+    date: z.string(),
+    description: z.string(),
+    merchant: z.string().optional(),
+    amount: z.number().positive(),
+    transaction_type: z.enum(["credit", "debit"]),
+    category: z.string().min(1),
+    subcategory: z.string().optional(),
+    confidence: z.number().optional(),
+  })).min(1),
+});
+
+export const commitImport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => CommitInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const reqId = Math.random().toString(36).slice(2, 8);
+    const kind = detectKind(data.fileName, data.fileType);
+
+    logStep(reqId, "commit-start", { count: data.txns.length, fileName: data.fileName });
+
+    const { data: fileRow, error: fileErr } = await supabase
+      .from("uploaded_files")
+      .insert({ user_id: userId, file_name: data.fileName, file_type: kind, processed: false })
+      .select("id, import_batch")
+      .single();
+    if (fileErr || !fileRow) throw new Error(fileErr?.message ?? "Falha ao registrar arquivo");
+
+    const rows = data.txns.map((t) => ({
+      user_id: userId,
+      date: t.date,
+      description: t.description,
+      merchant: t.merchant ?? t.description.slice(0, 60),
+      amount: t.amount,
+      transaction_type: t.transaction_type,
+      category: t.category,
+      subcategory: t.subcategory,
+      source_file: data.fileName,
+      import_batch: fileRow.import_batch,
+      confidence: t.confidence ?? 1.0,
+    }));
+    const { error: insertErr } = await supabase.from("transactions").insert(rows);
+    if (insertErr) {
+      await supabase.from("uploaded_files").update({
+        processed: true,
+        observations: `Erro ao salvar: ${insertErr.message}`,
+      }).eq("id", fileRow.id);
+      throw new Error(`Erro ao salvar transações: ${insertErr.message}`);
+    }
+
+    await supabase.from("uploaded_files").update({
+      processed: true,
+      records_found: rows.length,
+      observations: `${rows.length} transações importadas`,
+    }).eq("id", fileRow.id);
+
+    logStep(reqId, "commit-done", { imported: rows.length });
+    return { imported: rows.length, fileId: fileRow.id };
+  });
+
 
 
 export const listUploads = createServerFn({ method: "GET" })
