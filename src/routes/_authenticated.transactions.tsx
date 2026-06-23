@@ -1,12 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { listTransactions, updateTransactionCategory, deleteTransaction } from "@/lib/transactions.functions";
 import { listCategories } from "@/lib/categories.functions";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+
+type SortKey = "date" | "description" | "category" | "transaction_type";
+type SortDir = "asc" | "desc";
 
 export const Route = createFileRoute("/_authenticated/transactions")({
   component: TxPage,
@@ -18,6 +21,8 @@ const fmtDate = (d: string) => new Date(d).toLocaleDateString("pt-BR");
 
 function TxPage() {
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
   const qc = useQueryClient();
   const fetchTx = useServerFn(listTransactions);
   const fetchCats = useServerFn(listCategories);
@@ -30,6 +35,28 @@ function TxPage() {
   });
   const { data: cats } = useQuery({ queryKey: ["categories"], queryFn: () => fetchCats() });
   const catMap = new Map((cats ?? []).map((c) => [c.name, c]));
+
+  const sortedTxns = useMemo(() => {
+    const list = [...(txns ?? [])];
+    const dir = sortDir === "asc" ? 1 : -1;
+    const collator = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
+    list.sort((a, b) => {
+      const va = (a[sortKey] ?? "") as string;
+      const vb = (b[sortKey] ?? "") as string;
+      if (sortKey === "date") return (va < vb ? -1 : va > vb ? 1 : 0) * dir;
+      return collator.compare(String(va), String(vb)) * dir;
+    });
+    return list;
+  }, [txns, sortKey, sortDir]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else {
+      setSortKey(key);
+      setSortDir(key === "date" ? "desc" : "asc");
+    }
+  };
+
 
   const onChangeCat = async (id: string, category: string) => {
     try {
