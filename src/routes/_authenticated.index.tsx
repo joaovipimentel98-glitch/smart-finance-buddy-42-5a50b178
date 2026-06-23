@@ -103,20 +103,9 @@ function Dashboard() {
           </button>
           {mode === "custom" && (
             <div className="flex items-center gap-2 pl-2 border-l border-border w-full md:w-auto">
-              <DatePicker
-                date={startDate}
-                onChange={setStartDate}
-                label="De"
-                maxDate={endDate}
-              />
+              <DatePicker date={startDate} onChange={setStartDate} label="De" />
               <span className="text-muted-foreground text-xs">até</span>
-              <DatePicker
-                date={endDate}
-                onChange={setEndDate}
-                label="Até"
-                minDate={startDate}
-                maxDate={new Date()}
-              />
+              <DatePicker date={endDate} onChange={setEndDate} label="Até" />
             </div>
           )}
         </div>
