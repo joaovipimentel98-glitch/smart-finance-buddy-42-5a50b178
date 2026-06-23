@@ -117,16 +117,11 @@ export const generateInsights = createServerFn({ method: "POST" })
         description: i.description,
         user_id: userId,
       }));
-        title: i.title,
-        description: i.description,
-        user_id: userId,
-      }));
 
     if (rows.length === 0) throw new Error("Nenhum insight foi gerado pela IA.");
 
     await supabase.from("financial_insights").delete().eq("user_id", userId);
     const { error } = await supabase.from("financial_insights").insert(rows);
     if (error) throw new Error(error.message);
-    return { generated: rows.length };
     return { generated: rows.length };
   });
