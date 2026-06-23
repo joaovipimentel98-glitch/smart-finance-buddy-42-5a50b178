@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { listTransactions, updateTransactionCategory, deleteTransaction, listCategories } from "@/lib/transactions.functions";
+import { listTransactions, updateTransactionCategory, deleteTransaction } from "@/lib/transactions.functions";
+import { listCategories } from "@/lib/categories.functions";
 import { Search, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -86,7 +87,7 @@ function TxPage() {
                       onChange={(e) => onChangeCat(t.id, e.target.value)}
                       className="bg-secondary/50 border border-border rounded-md text-xs px-2 py-1 focus:outline-none focus:border-primary"
                     >
-                      {(cats ?? [t.category]).map((c) => (
+                      {(cats?.map((c) => c.name) ?? [t.category]).map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>

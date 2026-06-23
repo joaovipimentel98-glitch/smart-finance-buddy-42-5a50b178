@@ -85,14 +85,4 @@ export const deleteTransaction = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const listCategories = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("categories")
-      .select("name")
-      .eq("user_id", context.userId)
-      .order("name");
-    if (error) throw new Error(error.message);
-    return data?.map((c) => c.name) ?? [];
-  });
+// listCategories foi movido para src/lib/categories.functions.ts
