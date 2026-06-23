@@ -12,7 +12,11 @@ export type RawTxn = {
 
 function normalizeAmount(raw: string | number): number {
   if (typeof raw === "number") return raw;
-  const s = String(raw).replace(/[^\d,.\-]/g, "").trim();
+  // Normalize unicode minus/dash variants to ASCII '-'
+  const normalized = String(raw).replace(/[−–—]/g, "-");
+  // Detect negative sign before stripping currency symbols
+  const isNegative = /-/.test(normalized);
+  const s = normalized.replace(/[^\d,.]/g, "").trim();
   if (!s) return NaN;
   // Brazilian format: 1.234,56 -> 1234.56
   const hasComma = s.includes(",");
@@ -20,7 +24,8 @@ function normalizeAmount(raw: string | number): number {
   let cleaned = s;
   if (hasComma && hasDot) cleaned = s.replace(/\./g, "").replace(",", ".");
   else if (hasComma) cleaned = s.replace(",", ".");
-  return parseFloat(cleaned);
+  const v = parseFloat(cleaned);
+  return isNaN(v) ? NaN : (isNegative ? -v : v);
 }
 
 function normalizeDate(raw: string): string | null {
@@ -69,15 +74,20 @@ export function parseOFX(text: string): RawTxn[] {
   return txns;
 }
 
-const DATE_KEYS = ["data", "date", "dt", "data movimento", "data de lançamento"];
-const DESC_KEYS = ["descricao", "descrição", "description", "historico", "histórico", "memo", "lançamento", "lancamento", "details"];
-const AMOUNT_KEYS = ["valor", "amount", "value", "vlr"];
+const DATE_KEYS = ["data", "date", "dt", "data movimento", "data de lançamento", "data lançamento"];
+const DESC_KEYS = [
+  "descricao", "descrição", "description", "historico", "histórico", "memo", "lançamento", "lancamento", "details",
+  "origem / destino", "origem/destino", "origem", "destino", "favorecido", "estabelecimento", "beneficiario", "beneficiário", "contraparte",
+];
+const AMOUNT_KEYS = ["valor", "amount", "value", "vlr", "valor (r$)", "valor r$"];
 const DEBIT_KEYS = ["debito", "débito", "saida", "saída", "withdrawal"];
 const CREDIT_KEYS = ["credito", "crédito", "entrada", "deposit", "deposito", "depósito"];
 const TYPE_KEYS = ["tipo", "type", "operacao", "operação"];
 
 function pick(row: Record<string, unknown>, keys: string[]): string | undefined {
-  const lower = Object.fromEntries(Object.entries(row).map(([k, v]) => [k.toLowerCase().trim(), v]));
+  const lower = Object.fromEntries(
+    Object.entries(row).map(([k, v]) => [k.replace(/^\uFEFF/, "").toLowerCase().trim(), v]),
+  );
   for (const k of keys) if (k in lower && lower[k] != null && lower[k] !== "") return String(lower[k]);
   return undefined;
 }
@@ -107,19 +117,24 @@ function rowToTxn(row: Record<string, unknown>): RawTxn | null {
     if (isNaN(v)) return null;
     amount = Math.abs(v);
     const typeStr = pick(row, TYPE_KEYS);
-    if (typeStr && /credit|entrada|deposit/i.test(typeStr)) type = "credit";
-    else if (typeStr && /debit|saida|withdraw/i.test(typeStr)) type = "debit";
+    // Signed amount takes priority — it's the most reliable signal
+    if (v < 0) type = "debit";
+    else if (v > 0 && typeStr && /(enviad|pagament|compra|saida|saída|debit|withdraw|transfer.*enviad)/i.test(typeStr)) type = "debit";
+    else if (typeStr && /(recebid|entrada|deposit|credit|devolvid|estorno|reembolso)/i.test(typeStr)) type = "credit";
     else type = v < 0 ? "debit" : "credit";
   }
 
-  return { date, description: desc.trim(), amount, transaction_type: type };
+  return { date, description: desc.trim(), amount, transaction_type: type, merchant: desc.trim().slice(0, 80) };
 }
 
 export function parseCSV(text: string): RawTxn[] {
-  const res = Papa.parse<Record<string, unknown>>(text, {
+  // Strip BOM if present
+  const cleaned = text.replace(/^\uFEFF/, "");
+  const res = Papa.parse<Record<string, unknown>>(cleaned, {
     header: true,
     skipEmptyLines: true,
     delimitersToGuess: [",", ";", "\t", "|"],
+    transformHeader: (h) => h.replace(/^\uFEFF/, "").trim(),
   });
   return res.data.map(rowToTxn).filter((t): t is RawTxn => t != null);
 }
