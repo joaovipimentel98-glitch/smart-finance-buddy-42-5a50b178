@@ -12,7 +12,11 @@ export type RawTxn = {
 
 function normalizeAmount(raw: string | number): number {
   if (typeof raw === "number") return raw;
-  const s = String(raw).replace(/[^\d,.\-]/g, "").trim();
+  // Normalize unicode minus/dash variants to ASCII '-'
+  const normalized = String(raw).replace(/[−–—]/g, "-");
+  // Detect negative sign before stripping currency symbols
+  const isNegative = /-/.test(normalized);
+  const s = normalized.replace(/[^\d,.]/g, "").trim();
   if (!s) return NaN;
   // Brazilian format: 1.234,56 -> 1234.56
   const hasComma = s.includes(",");
@@ -20,7 +24,8 @@ function normalizeAmount(raw: string | number): number {
   let cleaned = s;
   if (hasComma && hasDot) cleaned = s.replace(/\./g, "").replace(",", ".");
   else if (hasComma) cleaned = s.replace(",", ".");
-  return parseFloat(cleaned);
+  const v = parseFloat(cleaned);
+  return isNaN(v) ? NaN : (isNegative ? -v : v);
 }
 
 function normalizeDate(raw: string): string | null {
