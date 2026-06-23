@@ -92,7 +92,15 @@ function Dashboard() {
             </button>
           ))}
           <button
-            onClick={() => setMode("custom")}
+            onClick={() => {
+              if (mode === "preset") {
+                const start = new Date();
+                start.setDate(start.getDate() - days);
+                setStartDate(start);
+                setEndDate(new Date());
+              }
+              setMode("custom");
+            }}
             className={`px-3 py-1.5 rounded-lg text-xs transition ${
               mode === "custom"
                 ? "bg-primary/20 text-foreground"
