@@ -83,18 +83,24 @@ function TxPage() {
                   <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmtDate(t.date)}</td>
                   <td className="px-4 py-3 max-w-xs truncate">{t.description}</td>
                   <td className="px-4 py-3">
-                    <select
-                      value={t.category}
-                      onChange={(e) => onChangeCat(t.id, e.target.value)}
-                      className="bg-secondary/50 border border-border rounded-md text-xs px-2 py-1 focus:outline-none focus:border-primary"
-                    >
-                      {(cats?.map((c) => c.name) ?? [t.category]).map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                    {Number(t.confidence) < 0.7 && (
-                      <span className="ml-2 text-[10px] text-warning">~{Math.round(Number(t.confidence) * 100)}%</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="size-2.5 rounded-full shrink-0"
+                        style={{ background: catMap.get(t.category)?.color || "#64748b" }}
+                      />
+                      <select
+                        value={t.category}
+                        onChange={(e) => onChangeCat(t.id, e.target.value)}
+                        className="bg-secondary/50 border border-border rounded-md text-xs px-2 py-1 focus:outline-none focus:border-primary"
+                      >
+                        {(cats?.map((c) => c.name) ?? [t.category]).map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                      {Number(t.confidence) < 0.7 && (
+                        <span className="text-[10px] text-warning">~{Math.round(Number(t.confidence) * 100)}%</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-md ${t.transaction_type === "credit" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
