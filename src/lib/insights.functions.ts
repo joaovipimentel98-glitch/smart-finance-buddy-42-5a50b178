@@ -105,13 +105,18 @@ export const generateInsights = createServerFn({ method: "POST" })
       throw new Error(`A IA retornou resposta inválida: ${e instanceof Error ? e.message : String(e)}`);
     }
 
-    const ALLOWED = new Set(["info", "warning", "critical", "success"]);
+    const ALLOWED = ["info", "warning", "critical", "success"] as const;
+    type Severity = (typeof ALLOWED)[number];
     const rows = parsed.insights
       .filter((i) => i.title && i.description)
       .slice(0, 8)
       .map((i) => ({
         type: i.type || "geral",
-        severity: ALLOWED.has(i.severity) ? i.severity : "info",
+        severity: (ALLOWED as readonly string[]).includes(i.severity) ? (i.severity as Severity) : ("info" as Severity),
+        title: i.title,
+        description: i.description,
+        user_id: userId,
+      }));
         title: i.title,
         description: i.description,
         user_id: userId,
