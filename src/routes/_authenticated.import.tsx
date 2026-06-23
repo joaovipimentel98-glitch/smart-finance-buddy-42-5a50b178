@@ -281,7 +281,10 @@ function ImportPage() {
         </div>
         <div className="flex flex-wrap gap-2 mb-8">
           {(categories ?? []).map((c) => (
-            <span key={c.id} className="px-3 py-1 rounded-full bg-white/5 text-xs border border-border">{c.name}</span>
+            <span key={c.id} className="px-3 py-1 rounded-full bg-white/5 text-xs border border-border flex items-center gap-1.5">
+              <span className="size-2 rounded-full" style={{ background: c.color || "#64748b" }} />
+              {c.name}
+            </span>
           ))}
         </div>
 
