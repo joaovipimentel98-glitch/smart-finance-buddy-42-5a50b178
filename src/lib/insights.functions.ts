@@ -61,64 +61,137 @@ export const generateInsights = createServerFn({ method: "POST" })
       ),
     };
 
+
+    const ALLOWED_SEVERITY = ["info", "warning", "critical", "success"] as const;
+    type Severity = (typeof ALLOWED_SEVERITY)[number];
+
+    const InsightItemSchema = z.object({
+      type: z.string().trim().min(1).max(40).default("geral"),
+      severity: z.string().trim().toLowerCase().default("info"),
+      title: z.string().trim().min(3).max(120),
+      description: z.string().trim().min(10).max(500),
+    });
+    const InsightSchema = z.object({
+      insights: z.array(InsightItemSchema).min(1).max(12),
+    });
+
+    // ---- Robust JSON extraction & repair ----
+    function extractJson(raw: string): string {
+      let s = raw.replace(/^\uFEFF/, "").trim();
+      // strip code fences (```json ... ``` or ``` ... ```)
+      s = s.replace(/^```(?:json|JSON)?\s*/m, "").replace(/```$/m, "").trim();
+      // find first { or [ and matching last } or ]
+      const firstObj = s.indexOf("{");
+      const firstArr = s.indexOf("[");
+      let start = -1;
+      let open = "{", close = "}";
+      if (firstObj !== -1 && (firstArr === -1 || firstObj < firstArr)) {
+        start = firstObj; open = "{"; close = "}";
+      } else if (firstArr !== -1) {
+        start = firstArr; open = "["; close = "]";
+      }
+      if (start === -1) throw new Error("Nenhum JSON encontrado na resposta da IA.");
+      const end = s.lastIndexOf(close);
+      if (end < start) throw new Error("JSON incompleto na resposta da IA.");
+      let body = s.slice(start, end + 1);
+
+      // Detect truncation indicators
+      if (/\.\.\.\s*$/.test(body) || /\u2026\s*$/.test(body)) {
+        throw new Error("Resposta da IA aparenta estar truncada.");
+      }
+
+      // Brace/bracket balance check
+      const openCount = (body.match(/[{\[]/g) || []).length;
+      const closeCount = (body.match(/[}\]]/g) || []).length;
+      if (openCount !== closeCount) {
+        throw new Error(`JSON desbalanceado (${openCount} aberturas / ${closeCount} fechamentos).`);
+      }
+
+      // Repair common issues: trailing commas, control chars, smart quotes
+      body = body
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+        .replace(/,(\s*[}\]])/g, "$1")
+        .replace(/[\u201C\u201D]/g, '"')
+        .replace(/[\u2018\u2019]/g, "'");
+
+      // If model wrapped array, coerce to { insights: [...] }
+      if (open === "[") body = `{"insights":${body}}`;
+      return body;
+    }
+
     const { getAiProvider, CHAT_MODEL } = await import("./ai-gateway.server");
     const { generateText } = await import("ai");
     const provider = getAiProvider();
 
-    const InsightSchema = z.object({
-      insights: z.array(z.object({
-        type: z.string().default("geral"),
-        severity: z.string().default("info"),
-        title: z.string(),
-        description: z.string(),
-      })),
-    });
+    const callModel = async () =>
+      (await generateText({
+        model: provider(CHAT_MODEL),
+        messages: [
+          {
+            role: "system",
+            content:
+              "Você é um consultor financeiro pessoal. Analise dados reais e gere insights acionáveis em português brasileiro. Foque em: hábitos de consumo, desperdícios, crescimentos suspeitos, oportunidades de economia e padrões. Seja específico — cite categorias e valores em reais (R$).\n\n" +
+              "RESPONDA EXCLUSIVAMENTE COM JSON VÁLIDO, sem markdown, sem cercas de código, sem texto antes ou depois.\n" +
+              'Formato exato: {"insights":[{"type":"economia","severity":"info","title":"...","description":"..."}]}\n' +
+              "severity ∈ [info, warning, critical, success]. title 3–120 chars. description 10–500 chars.",
+          },
+          {
+            role: "user",
+            content: `Resumo (últimos 90 dias):\n${JSON.stringify(summary)}\n\nGere de 4 a 6 insights. Apenas JSON.`,
+          },
+        ],
+      })).text;
 
-    const { text } = await generateText({
-      model: provider(CHAT_MODEL),
-      messages: [
-        {
-          role: "system",
-          content:
-            "Você é um consultor financeiro pessoal. Analise dados reais e gere insights acionáveis em português brasileiro. Foque em: hábitos de consumo, desperdícios, crescimentos suspeitos, oportunidades de economia e padrões. Seja específico — cite categorias e valores em reais (R$).\n\n" +
-            'RESPONDA APENAS COM JSON VÁLIDO neste formato exato (sem markdown, sem ```):\n' +
-            '{"insights":[{"type":"economia","severity":"info","title":"...","description":"..."}]}\n' +
-            "severity deve ser um destes: info, warning, critical, success.",
-        },
-        {
-          role: "user",
-          content: `Resumo financeiro do usuário (últimos 90 dias):\n\n${JSON.stringify(summary, null, 2)}\n\nGere de 4 a 6 insights concretos. Cada um curto (1-2 frases na descrição). Apenas JSON.`,
-        },
-      ],
-    });
-
-    // Robust JSON extraction
-    let parsed: z.infer<typeof InsightSchema>;
-    try {
-      let cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-      const start = cleaned.indexOf("{");
-      const end = cleaned.lastIndexOf("}");
-      if (start === -1 || end === -1) throw new Error("Sem JSON na resposta");
-      cleaned = cleaned.slice(start, end + 1).replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
-      parsed = InsightSchema.parse(JSON.parse(cleaned));
-    } catch (e) {
-      throw new Error(`A IA retornou resposta inválida: ${e instanceof Error ? e.message : String(e)}`);
+    // ---- Try once, retry once on validation failure ----
+    let parsed: z.infer<typeof InsightSchema> | null = null;
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
+      try {
+        const text = await callModel();
+        if (!text || text.trim().length === 0) throw new Error("Resposta vazia da IA.");
+        const jsonStr = extractJson(text);
+        const json = JSON.parse(jsonStr);
+        const result = InsightSchema.safeParse(json);
+        if (!result.success) {
+          const issues = result.error.issues.slice(0, 3).map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+          throw new Error(`Schema inválido: ${issues}`);
+        }
+        parsed = result.data;
+      } catch (e) {
+        lastErr = e;
+        console.error(`[insights] tentativa ${attempt + 1} falhou:`, e);
+      }
     }
 
-    const ALLOWED = ["info", "warning", "critical", "success"] as const;
-    type Severity = (typeof ALLOWED)[number];
-    const rows = parsed.insights
-      .filter((i) => i.title && i.description)
-      .slice(0, 8)
-      .map((i) => ({
-        type: i.type || "geral",
-        severity: (ALLOWED as readonly string[]).includes(i.severity) ? (i.severity as Severity) : ("info" as Severity),
-        title: i.title,
-        description: i.description,
-        user_id: userId,
-      }));
+    if (!parsed) {
+      throw new Error(
+        `A IA não retornou um JSON válido após 2 tentativas: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}`,
+      );
+    }
 
-    if (rows.length === 0) throw new Error("Nenhum insight foi gerado pela IA.");
+    // Final normalization + safety filter
+    const seen = new Set<string>();
+    const rows = parsed.insights
+      .map((i) => ({
+        type: i.type.slice(0, 40),
+        severity: (ALLOWED_SEVERITY as readonly string[]).includes(i.severity)
+          ? (i.severity as Severity)
+          : ("info" as Severity),
+        title: i.title.slice(0, 120),
+        description: i.description.slice(0, 500),
+        user_id: userId,
+      }))
+      .filter((i) => {
+        const key = i.title.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 8);
+
+    if (rows.length === 0) {
+      throw new Error("Nenhum insight válido após validação.");
+    }
 
     await supabase.from("financial_insights").delete().eq("user_id", userId);
     const { error } = await supabase.from("financial_insights").insert(rows);
