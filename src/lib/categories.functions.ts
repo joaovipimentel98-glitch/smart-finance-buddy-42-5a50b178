@@ -37,26 +37,81 @@ export const createCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({
     name: z.string().min(1).max(50),
-    icon: z.string().optional(),
-    color: z.string().optional(),
+    icon: z.string().max(40).optional().nullable(),
+    color: z.string().max(20).optional().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const name = data.name.trim();
     const { data: row, error } = await supabase
       .from("categories")
-      .insert({ user_id: userId, name, icon: data.icon, color: data.color, is_default: false })
+      .insert({ user_id: userId, name, icon: data.icon ?? null, color: data.color ?? null, is_default: false })
       .select("id, name, is_default, icon, color")
       .single();
     if (error) throw new Error(error.message);
     return row;
   });
 
-export const deleteCategory = createServerFn({ method: "POST" })
+export const updateCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d: unknown) => z.object({
+    id: z.string().uuid(),
+    name: z.string().min(1).max(50).optional(),
+    icon: z.string().max(40).nullable().optional(),
+    color: z.string().max(20).nullable().optional(),
+  }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const patch: Record<string, unknown> = {};
+    if (data.name !== undefined) patch.name = data.name.trim();
+    if (data.icon !== undefined) patch.icon = data.icon;
+    if (data.color !== undefined) patch.color = data.color;
+
+    // If renaming, cascade to transactions and category_rules for this user
+    let oldName: string | null = null;
+    if (patch.name) {
+      const { data: existing } = await supabase
+        .from("categories").select("name").eq("id", data.id).eq("user_id", userId).single();
+      oldName = existing?.name ?? null;
+    }
+
+    const { data: row, error } = await supabase
+      .from("categories")
+      .update(patch)
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .select("id, name, is_default, icon, color")
+      .single();
+    if (error) throw new Error(error.message);
+
+    if (oldName && patch.name && oldName !== patch.name) {
+      await supabase.from("transactions").update({ category: patch.name as string })
+        .eq("user_id", userId).eq("category", oldName);
+      await supabase.from("category_rules").update({ category: patch.name as string })
+        .eq("user_id", userId).eq("category", oldName);
+    }
+    return row;
+  });
+
+export const deleteCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    id: z.string().uuid(),
+    reassignTo: z.string().min(1).max(50).optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: existing } = await supabase
+      .from("categories").select("name").eq("id", data.id).eq("user_id", userId).single();
+    const target = data.reassignTo?.trim() || "Outros";
+
+    if (existing?.name) {
+      await supabase.from("transactions").update({ category: target })
+        .eq("user_id", userId).eq("category", existing.name);
+      await supabase.from("category_rules").delete()
+        .eq("user_id", userId).eq("category", existing.name);
+    }
+
     const { error } = await supabase
       .from("categories")
       .delete()
