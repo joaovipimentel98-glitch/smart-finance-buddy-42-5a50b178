@@ -28,8 +28,8 @@ export const Route = createFileRoute("/api/chat")({
         const body = (await request.json()) as { messages?: UIMessage[] };
         const messages = body.messages ?? [];
 
-        const { getAiProvider, CHAT_MODEL } = await import("@/lib/ai-gateway.server");
-        const provider = getAiProvider();
+        const { getChatModels } = await import("@/lib/ai-gateway.server");
+        const candidates = getChatModels();
 
         const tools = {
           getSpendingByCategory: tool({
@@ -99,15 +99,25 @@ export const Route = createFileRoute("/api/chat")({
           }),
         };
 
-        const result = streamText({
-          model: provider(CHAT_MODEL),
-          system: "Você é um consultor financeiro pessoal em português brasileiro. Use as ferramentas para consultar os dados reais do usuário antes de responder. Valores em reais (R$). Seja direto e específico. Sempre responda em português.",
-          messages: await convertToModelMessages(messages),
-          tools,
-          stopWhen: ({ steps }) => steps.length >= 8,
-        });
-
-        return result.toUIMessageStreamResponse({ originalMessages: messages });
+        // Try providers in order; on synchronous setup error, fall back.
+        let lastErr: unknown = null;
+        for (const { label, model } of candidates) {
+          try {
+            const result = streamText({
+              model,
+              system: "Você é um consultor financeiro pessoal em português brasileiro. Use as ferramentas para consultar os dados reais do usuário antes de responder. Valores em reais (R$). Seja direto e específico. Sempre responda em português.",
+              messages: await convertToModelMessages(messages),
+              tools,
+              stopWhen: ({ steps }) => steps.length >= 8,
+              onError: (e) => console.error(`[chat] ${label} stream error:`, e),
+            });
+            return result.toUIMessageStreamResponse({ originalMessages: messages });
+          } catch (e) {
+            console.error(`[chat] provider ${label} failed:`, e);
+            lastErr = e;
+          }
+        }
+        return new Response(`Todos os provedores falharam: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}`, { status: 502 });
       },
     },
   },
