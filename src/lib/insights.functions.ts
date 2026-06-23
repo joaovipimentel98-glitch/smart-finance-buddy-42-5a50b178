@@ -62,36 +62,65 @@ export const generateInsights = createServerFn({ method: "POST" })
     };
 
     const { getAiProvider, CHAT_MODEL } = await import("./ai-gateway.server");
-    const { generateText, Output } = await import("ai");
+    const { generateText } = await import("ai");
     const provider = getAiProvider();
 
-    const { output } = await generateText({
+    const InsightSchema = z.object({
+      insights: z.array(z.object({
+        type: z.string().default("geral"),
+        severity: z.string().default("info"),
+        title: z.string(),
+        description: z.string(),
+      })),
+    });
+
+    const { text } = await generateText({
       model: provider(CHAT_MODEL),
-      output: Output.object({
-        schema: z.object({
-          insights: z.array(z.object({
-            type: z.string(),
-            severity: z.enum(["info", "warning", "critical", "success"]),
-            title: z.string(),
-            description: z.string(),
-          })).min(3).max(8),
-        }),
-      }),
       messages: [
         {
           role: "system",
-          content: "Você é um consultor financeiro pessoal. Analise dados reais e gere insights acionáveis em português brasileiro. Foque em: hábitos de consumo, desperdícios, crescimentos suspeitos, oportunidades de economia e padrões. Seja específico — cite categorias e valores em reais (R$).",
+          content:
+            "Você é um consultor financeiro pessoal. Analise dados reais e gere insights acionáveis em português brasileiro. Foque em: hábitos de consumo, desperdícios, crescimentos suspeitos, oportunidades de economia e padrões. Seja específico — cite categorias e valores em reais (R$).\n\n" +
+            'RESPONDA APENAS COM JSON VÁLIDO neste formato exato (sem markdown, sem ```):\n' +
+            '{"insights":[{"type":"economia","severity":"info","title":"...","description":"..."}]}\n' +
+            "severity deve ser um destes: info, warning, critical, success.",
         },
         {
           role: "user",
-          content: `Resumo financeiro do usuário (últimos 90 dias):\n\n${JSON.stringify(summary, null, 2)}\n\nGere de 4 a 6 insights concretos. Cada um curto (1-2 frases na descrição).`,
+          content: `Resumo financeiro do usuário (últimos 90 dias):\n\n${JSON.stringify(summary, null, 2)}\n\nGere de 4 a 6 insights concretos. Cada um curto (1-2 frases na descrição). Apenas JSON.`,
         },
       ],
     });
 
-    // Clear old insights, save new
+    // Robust JSON extraction
+    let parsed: z.infer<typeof InsightSchema>;
+    try {
+      let cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+      const start = cleaned.indexOf("{");
+      const end = cleaned.lastIndexOf("}");
+      if (start === -1 || end === -1) throw new Error("Sem JSON na resposta");
+      cleaned = cleaned.slice(start, end + 1).replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+      parsed = InsightSchema.parse(JSON.parse(cleaned));
+    } catch (e) {
+      throw new Error(`A IA retornou resposta inválida: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    const ALLOWED = ["info", "warning", "critical", "success"] as const;
+    type Severity = (typeof ALLOWED)[number];
+    const rows = parsed.insights
+      .filter((i) => i.title && i.description)
+      .slice(0, 8)
+      .map((i) => ({
+        type: i.type || "geral",
+        severity: (ALLOWED as readonly string[]).includes(i.severity) ? (i.severity as Severity) : ("info" as Severity),
+        title: i.title,
+        description: i.description,
+        user_id: userId,
+      }));
+
+    if (rows.length === 0) throw new Error("Nenhum insight foi gerado pela IA.");
+
     await supabase.from("financial_insights").delete().eq("user_id", userId);
-    const rows = output.insights.map((i) => ({ ...i, user_id: userId }));
     const { error } = await supabase.from("financial_insights").insert(rows);
     if (error) throw new Error(error.message);
     return { generated: rows.length };
