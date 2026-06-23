@@ -96,16 +96,16 @@ function TxPage() {
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground border-b border-border bg-muted/30">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">Data</th>
-                <th className="text-left px-4 py-3 font-medium">Descrição</th>
-                <th className="text-left px-4 py-3 font-medium">Categoria</th>
-                <th className="text-left px-4 py-3 font-medium">Tipo</th>
+                <SortableTh label="Data" col="date" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Descrição" col="description" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Categoria" col="category" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Tipo" col="transaction_type" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                 <th className="text-right px-4 py-3 font-medium">Valor</th>
                 <th className="px-4 py-3 w-10"></th>
               </tr>
             </thead>
             <tbody>
-              {(txns ?? []).map((t) => (
+              {sortedTxns.map((t) => (
                 <tr key={t.id} className="border-b border-border/40 hover:bg-white/[0.02]">
                   <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmtDate(t.date)}</td>
                   <td className="px-4 py-3 max-w-xs truncate">{t.description}</td>
@@ -144,7 +144,7 @@ function TxPage() {
                   </td>
                 </tr>
               ))}
-              {(!txns || txns.length === 0) && (
+              {sortedTxns.length === 0 && (
                 <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">Nenhuma transação encontrada.</td></tr>
               )}
             </tbody>
