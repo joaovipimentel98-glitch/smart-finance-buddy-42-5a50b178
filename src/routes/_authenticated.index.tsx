@@ -3,12 +3,17 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { format } from "date-fns";
 import { getDashboardData } from "@/lib/analytics.functions";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { TrendingUp, TrendingDown, Wallet, Target, Sparkles, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Target, Sparkles, ArrowUpRight, ArrowDownRight, CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/")({
   component: Dashboard,
