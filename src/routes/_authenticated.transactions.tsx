@@ -87,7 +87,7 @@ function TxPage() {
                       onChange={(e) => onChangeCat(t.id, e.target.value)}
                       className="bg-secondary/50 border border-border rounded-md text-xs px-2 py-1 focus:outline-none focus:border-primary"
                     >
-                      {(cats ?? [t.category]).map((c) => (
+                      {(cats?.map((c) => c.name) ?? [t.category]).map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
