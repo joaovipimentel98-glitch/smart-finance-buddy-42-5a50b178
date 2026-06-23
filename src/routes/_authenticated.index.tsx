@@ -3,12 +3,17 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { format } from "date-fns";
 import { getDashboardData } from "@/lib/analytics.functions";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { TrendingUp, TrendingDown, Wallet, Target, Sparkles, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Target, Sparkles, ArrowUpRight, ArrowDownRight, CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/")({
   component: Dashboard,
@@ -33,34 +38,84 @@ const PIE_COLORS = [
   "oklch(0.7 0.18 320)", "oklch(0.7 0.18 180)", "oklch(0.7 0.18 50)",
 ];
 
+type RangeMode = "preset" | "custom";
+
 function Dashboard() {
+  const [mode, setMode] = useState<RangeMode>("preset");
   const [days, setDays] = useState(90);
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const [startDate, setStartDate] = useState<Date | undefined>(thirtyDaysAgo);
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+
   const fetchData = useServerFn(getDashboardData);
   const opts = queryOptions({
-    queryKey: ["dashboard", days],
-    queryFn: () => fetchData({ data: { days } }),
+    queryKey:
+      mode === "preset"
+        ? ["dashboard", "preset", days]
+        : ["dashboard", "custom", startDate!.toISOString().slice(0, 10), endDate!.toISOString().slice(0, 10)],
+    queryFn: () =>
+      mode === "preset"
+        ? fetchData({ data: { days } })
+        : fetchData({
+            data: {
+              startDate: startDate!.toISOString().slice(0, 10),
+              endDate: endDate!.toISOString().slice(0, 10),
+            },
+          }),
+    enabled: mode === "preset" || (!!startDate && !!endDate),
   });
   const { data, isLoading } = useQuery(opts);
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
-      <header className="mb-8 flex items-center justify-between flex-wrap gap-4">
+      <header className="mb-8 flex items-start md:items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Visão geral</h1>
           <p className="text-sm text-muted-foreground mt-1">Seu panorama financeiro em tempo real.</p>
         </div>
-        <div className="flex gap-1 surface-card p-1">
+        <div className="flex flex-wrap items-center gap-2 surface-card p-1">
           {RANGES.map((r) => (
             <button
               key={r.value}
-              onClick={() => setDays(r.value)}
+              onClick={() => {
+                setMode("preset");
+                setDays(r.value);
+              }}
               className={`px-3 py-1.5 rounded-lg text-xs transition ${
-                days === r.value ? "bg-primary/20 text-foreground" : "text-muted-foreground hover:text-foreground"
+                mode === "preset" && days === r.value
+                  ? "bg-primary/20 text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {r.label}
             </button>
           ))}
+          <button
+            onClick={() => {
+              if (mode === "preset") {
+                const start = new Date();
+                start.setDate(start.getDate() - days);
+                setStartDate(start);
+                setEndDate(new Date());
+              }
+              setMode("custom");
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs transition ${
+              mode === "custom"
+                ? "bg-primary/20 text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Personalizado
+          </button>
+          {mode === "custom" && (
+            <div className="flex items-center gap-2 pl-2 border-l border-border w-full md:w-auto">
+              <DatePicker date={startDate} onChange={setStartDate} label="De" />
+              <span className="text-muted-foreground text-xs">até</span>
+              <DatePicker date={endDate} onChange={setEndDate} label="Até" />
+            </div>
+          )}
         </div>
       </header>
 
@@ -176,6 +231,43 @@ function Dashboard() {
         </>
       )}
     </div>
+  );
+}
+
+function DatePicker({
+  date,
+  onChange,
+  label,
+}: {
+  date: Date | undefined;
+  onChange: (d: Date | undefined) => void;
+  label: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          aria-label={label}
+          className={cn(
+            "h-8 px-2 justify-start text-left text-xs font-normal min-w-[110px]",
+            !date && "text-muted-foreground",
+          )}
+        >
+          <CalendarIcon className="mr-1 size-3.5" />
+          {date ? format(date, "dd/MM/yyyy") : <span>{label}</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={onChange}
+          initialFocus
+          className="pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
