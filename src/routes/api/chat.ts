@@ -3,7 +3,7 @@ import { convertToModelMessages, streamText, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { getAiProvider, CHAT_MODEL } from "@/lib/ai-gateway.server";
+
 
 export const Route = createFileRoute("/api/chat")({
   server: {
@@ -28,6 +28,7 @@ export const Route = createFileRoute("/api/chat")({
         const body = (await request.json()) as { messages?: UIMessage[] };
         const messages = body.messages ?? [];
 
+        const { getAiProvider, CHAT_MODEL } = await import("@/lib/ai-gateway.server");
         const provider = getAiProvider();
 
         const tools = {
