@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Upload, ListChecks, Sparkles, MessageSquare, LogOut, Wallet } from "lucide-react";
+import { LayoutDashboard, Upload, ListChecks, Sparkles, MessageSquare, LogOut, Wallet, Tag } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -15,6 +15,7 @@ export const Route = createFileRoute("/_authenticated")({
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/transactions", label: "Transações", icon: ListChecks },
+  { to: "/categories", label: "Categorias", icon: Tag },
   { to: "/import", label: "Importar", icon: Upload },
   { to: "/insights", label: "Consultor IA", icon: Sparkles },
   { to: "/chat", label: "Chat", icon: MessageSquare },
