@@ -119,28 +119,29 @@ export const generateInsights = createServerFn({ method: "POST" })
       return body;
     }
 
-    const { getAiProvider, CHAT_MODEL } = await import("./ai-gateway.server");
+    const { withProviderFallback } = await import("./ai-gateway.server");
     const { generateText } = await import("ai");
-    const provider = getAiProvider();
 
     const callModel = async () =>
-      (await generateText({
-        model: provider(CHAT_MODEL),
-        messages: [
-          {
-            role: "system",
-            content:
-              "Você é um consultor financeiro pessoal. Analise dados reais e gere insights acionáveis em português brasileiro. Foque em: hábitos de consumo, desperdícios, crescimentos suspeitos, oportunidades de economia e padrões. Seja específico — cite categorias e valores em reais (R$).\n\n" +
-              "RESPONDA EXCLUSIVAMENTE COM JSON VÁLIDO, sem markdown, sem cercas de código, sem texto antes ou depois.\n" +
-              'Formato exato: {"insights":[{"type":"economia","severity":"info","title":"...","description":"..."}]}\n' +
-              "severity ∈ [info, warning, critical, success]. title 3–120 chars. description 10–500 chars.",
-          },
-          {
-            role: "user",
-            content: `Resumo (últimos 90 dias):\n${JSON.stringify(summary)}\n\nGere de 4 a 6 insights. Apenas JSON.`,
-          },
-        ],
-      })).text;
+      withProviderFallback(async (model) =>
+        (await generateText({
+          model,
+          messages: [
+            {
+              role: "system",
+              content:
+                "Você é um consultor financeiro pessoal. Analise dados reais e gere insights acionáveis em português brasileiro. Foque em: hábitos de consumo, desperdícios, crescimentos suspeitos, oportunidades de economia e padrões. Seja específico — cite categorias e valores em reais (R$).\n\n" +
+                "RESPONDA EXCLUSIVAMENTE COM JSON VÁLIDO, sem markdown, sem cercas de código, sem texto antes ou depois.\n" +
+                'Formato exato: {"insights":[{"type":"economia","severity":"info","title":"...","description":"..."}]}\n' +
+                "severity ∈ [info, warning, critical, success]. title 3–120 chars. description 10–500 chars.",
+            },
+            {
+              role: "user",
+              content: `Resumo (últimos 90 dias):\n${JSON.stringify(summary)}\n\nGere de 4 a 6 insights. Apenas JSON.`,
+            },
+          ],
+        })).text,
+      );
 
     // ---- Try once, retry once on validation failure ----
     let parsed: z.infer<typeof InsightSchema> | null = null;
