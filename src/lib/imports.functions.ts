@@ -55,7 +55,6 @@ async function extractFromImageOrPdf(base64: string, mime: string): Promise<Pars
     const { object } = await generateObject({
       model: provider(CHAT_MODEL),
       schema,
-      mode: "json",
       messages: [
         {
           role: "user",
