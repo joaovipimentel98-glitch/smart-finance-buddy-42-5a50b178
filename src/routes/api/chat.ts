@@ -109,15 +109,16 @@ export const Route = createFileRoute("/api/chat")({
               messages: await convertToModelMessages(messages),
               tools,
               stopWhen: ({ steps }) => steps.length >= 8,
-              onError: (e) => console.error(`[chat] ${label} stream error:`, e),
+              onError: (e) => console.error(`[chat] ${label} stream error:`, redactSecrets(e instanceof Error ? e.message : String(e))),
             });
             return result.toUIMessageStreamResponse({ originalMessages: messages });
           } catch (e) {
-            console.error(`[chat] provider ${label} failed:`, e);
-            lastErr = e;
+            const safe = redactSecrets(e instanceof Error ? e.message : String(e));
+            console.error(`[chat] provider ${label} failed:`, safe);
+            lastErr = safe;
           }
         }
-        return new Response(`Todos os provedores falharam: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}`, { status: 502 });
+        return new Response(redactSecrets(`Todos os provedores falharam: ${lastErr ?? ""}`), { status: 502 });
       },
     },
   },
