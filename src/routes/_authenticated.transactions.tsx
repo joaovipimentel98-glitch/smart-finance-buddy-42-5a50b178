@@ -91,7 +91,83 @@ function TxPage() {
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por descrição..." className="border-0 bg-transparent focus-visible:ring-0" />
       </div>
 
-      <div className="surface-card overflow-hidden">
+      {/* Mobile sort toolbar */}
+      <div className="md:hidden surface-card p-2 mb-3 flex items-center gap-2 overflow-x-auto">
+        <span className="text-[11px] text-muted-foreground px-1 shrink-0">Ordenar:</span>
+        {([
+          ["date", "Data"],
+          ["category", "Categoria"],
+          ["transaction_type", "Tipo"],
+          ["description", "Descrição"],
+        ] as [SortKey, string][]).map(([k, label]) => {
+          const active = sortKey === k;
+          const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => toggleSort(k)}
+              aria-pressed={active}
+              className={`shrink-0 inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md border transition ${
+                active
+                  ? "bg-primary/15 border-primary/30 text-foreground"
+                  : "bg-secondary/40 border-border text-muted-foreground"
+              }`}
+            >
+              {label}
+              <Icon className="size-3" />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2">
+        {sortedTxns.map((t) => (
+          <div key={t.id} className="surface-card p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] text-muted-foreground">{fmtDate(t.date)}</div>
+                <div className="text-sm font-medium truncate">{t.description}</div>
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 text-xs">
+                    <span
+                      className="size-2.5 rounded-full shrink-0"
+                      style={{ background: catMap.get(t.category)?.color || "#64748b" }}
+                    />
+                    <select
+                      value={t.category}
+                      onChange={(e) => onChangeCat(t.id, e.target.value)}
+                      className="bg-secondary/50 border border-border rounded-md text-xs px-2 py-1 max-w-[140px] focus:outline-none focus:border-primary"
+                    >
+                      {(cats?.map((c) => c.name) ?? [t.category]).map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-md ${t.transaction_type === "credit" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
+                    {t.transaction_type === "credit" ? "Entrada" : "Saída"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <div className={`text-sm font-semibold whitespace-nowrap ${t.transaction_type === "credit" ? "text-success" : "text-destructive"}`}>
+                  {fmtBRL(Number(t.amount))}
+                </div>
+                <button onClick={() => onDelete(t.id)} aria-label="Excluir" className="text-muted-foreground hover:text-destructive transition p-1">
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {sortedTxns.length === 0 && (
+          <div className="surface-card p-8 text-center text-muted-foreground text-sm">Nenhuma transação encontrada.</div>
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="surface-card overflow-hidden hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground border-b border-border bg-muted/30">
@@ -151,6 +227,7 @@ function TxPage() {
           </table>
         </div>
       </div>
+
     </div>
   );
 }
