@@ -61,9 +61,6 @@ export const generateInsights = createServerFn({ method: "POST" })
       ),
     };
 
-    const { getAiProvider, CHAT_MODEL } = await import("./ai-gateway.server");
-    const { generateText } = await import("ai");
-    const provider = getAiProvider();
 
     const ALLOWED_SEVERITY = ["info", "warning", "critical", "success"] as const;
     type Severity = (typeof ALLOWED_SEVERITY)[number];
