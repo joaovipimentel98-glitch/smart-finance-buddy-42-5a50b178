@@ -23,19 +23,38 @@ function ImportPage() {
 
   const handleFiles = async (files: FileList | File[]) => {
     setBusy(true);
+    const list = Array.from(files);
+    console.groupCollapsed(`[import] iniciando ${list.length} arquivo(s)`);
     try {
-      for (const file of Array.from(files)) {
-        const buf = await file.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-        const res = await doImport({ data: { fileName: file.name, fileType: file.type || "application/octet-stream", base64 } });
-        toast.success(`${file.name}: ${res.imported} transações importadas`);
+      for (const file of list) {
+        const t0 = performance.now();
+        console.log(`[import] → ${file.name} (${file.type || "?"}, ${(file.size / 1024).toFixed(1)} KB)`);
+        try {
+          const buf = await file.arrayBuffer();
+          // Codificação base64 segura para arquivos grandes (evita estouro do stack de String.fromCharCode)
+          const bytes = new Uint8Array(buf);
+          let binary = "";
+          const CHUNK = 0x8000;
+          for (let i = 0; i < bytes.length; i += CHUNK) {
+            binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+          }
+          const base64 = btoa(binary);
+          console.log(`[import]   base64 pronto (${(base64.length / 1024).toFixed(1)} KB) — enviando ao servidor`);
+          const res = await doImport({ data: { fileName: file.name, fileType: file.type || "application/octet-stream", base64 } });
+          console.log(`[import]   ✓ ${file.name} reqId=${res.reqId} step=${res.step} imported=${res.imported} (${Math.round(performance.now() - t0)}ms)`);
+          if (res.imported > 0) toast.success(`${file.name}: ${res.imported} transações importadas`);
+          else toast.warning(`${file.name}: nenhuma transação encontrada`);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`[import]   ✗ ${file.name} falhou:`, err);
+          toast.error(`${file.name}: ${msg}`, { duration: 8000 });
+        }
       }
       qc.invalidateQueries({ queryKey: ["uploads"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       qc.invalidateQueries({ queryKey: ["transactions"] });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao importar");
     } finally {
+      console.groupEnd();
       setBusy(false);
     }
   };
