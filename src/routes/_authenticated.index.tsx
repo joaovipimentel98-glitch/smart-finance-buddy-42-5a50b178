@@ -230,19 +230,11 @@ function DatePicker({
   date,
   onChange,
   label,
-  minDate,
-  maxDate,
 }: {
   date: Date | undefined;
   onChange: (d: Date | undefined) => void;
   label: string;
-  minDate?: Date;
-  maxDate?: Date;
 }) {
-  const disabled: { before?: Date; after?: Date }[] = [];
-  if (minDate) disabled.push({ before: minDate });
-  if (maxDate) disabled.push({ after: maxDate });
-
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -262,7 +254,6 @@ function DatePicker({
           mode="single"
           selected={date}
           onSelect={onChange}
-          disabled={disabled.length > 0 ? disabled : undefined}
           initialFocus
           className="pointer-events-auto"
         />
