@@ -1,12 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { listTransactions, updateTransactionCategory, deleteTransaction } from "@/lib/transactions.functions";
 import { listCategories } from "@/lib/categories.functions";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+
+type SortKey = "date" | "description" | "category" | "transaction_type";
+type SortDir = "asc" | "desc";
 
 export const Route = createFileRoute("/_authenticated/transactions")({
   component: TxPage,
@@ -18,6 +21,8 @@ const fmtDate = (d: string) => new Date(d).toLocaleDateString("pt-BR");
 
 function TxPage() {
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
   const qc = useQueryClient();
   const fetchTx = useServerFn(listTransactions);
   const fetchCats = useServerFn(listCategories);
@@ -30,6 +35,28 @@ function TxPage() {
   });
   const { data: cats } = useQuery({ queryKey: ["categories"], queryFn: () => fetchCats() });
   const catMap = new Map((cats ?? []).map((c) => [c.name, c]));
+
+  const sortedTxns = useMemo(() => {
+    const list = [...(txns ?? [])];
+    const dir = sortDir === "asc" ? 1 : -1;
+    const collator = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
+    list.sort((a, b) => {
+      const va = (a[sortKey] ?? "") as string;
+      const vb = (b[sortKey] ?? "") as string;
+      if (sortKey === "date") return (va < vb ? -1 : va > vb ? 1 : 0) * dir;
+      return collator.compare(String(va), String(vb)) * dir;
+    });
+    return list;
+  }, [txns, sortKey, sortDir]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else {
+      setSortKey(key);
+      setSortDir(key === "date" ? "desc" : "asc");
+    }
+  };
+
 
   const onChangeCat = async (id: string, category: string) => {
     try {
@@ -69,16 +96,16 @@ function TxPage() {
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground border-b border-border bg-muted/30">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">Data</th>
-                <th className="text-left px-4 py-3 font-medium">Descrição</th>
-                <th className="text-left px-4 py-3 font-medium">Categoria</th>
-                <th className="text-left px-4 py-3 font-medium">Tipo</th>
+                <SortableTh label="Data" col="date" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Descrição" col="description" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Categoria" col="category" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Tipo" col="transaction_type" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                 <th className="text-right px-4 py-3 font-medium">Valor</th>
                 <th className="px-4 py-3 w-10"></th>
               </tr>
             </thead>
             <tbody>
-              {(txns ?? []).map((t) => (
+              {sortedTxns.map((t) => (
                 <tr key={t.id} className="border-b border-border/40 hover:bg-white/[0.02]">
                   <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmtDate(t.date)}</td>
                   <td className="px-4 py-3 max-w-xs truncate">{t.description}</td>
@@ -117,7 +144,7 @@ function TxPage() {
                   </td>
                 </tr>
               ))}
-              {(!txns || txns.length === 0) && (
+              {sortedTxns.length === 0 && (
                 <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">Nenhuma transação encontrada.</td></tr>
               )}
             </tbody>
@@ -125,5 +152,30 @@ function TxPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SortableTh({
+  label, col, sortKey, sortDir, onClick,
+}: {
+  label: string;
+  col: SortKey;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onClick: (k: SortKey) => void;
+}) {
+  const active = sortKey === col;
+  const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th className="text-left px-4 py-3 font-medium">
+      <button
+        type="button"
+        onClick={() => onClick(col)}
+        className={`inline-flex items-center gap-1 hover:text-foreground transition ${active ? "text-foreground" : ""}`}
+      >
+        {label}
+        <Icon className="size-3" />
+      </button>
+    </th>
   );
 }

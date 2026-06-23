@@ -43,8 +43,30 @@ export function getChatModels(): Array<{ label: string; model: LanguageModel }> 
 }
 
 /**
+ * Removes any occurrence of server-side secrets from a string. Used before
+ * logging or returning error messages to the client.
+ */
+export function redactSecrets(input: string): string {
+  let out = input;
+  const secrets = [
+    process.env.OPENAI_API_KEY,
+    process.env.LOVABLE_API_KEY,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  ].filter((v): v is string => typeof v === "string" && v.length >= 8);
+  for (const s of secrets) {
+    // Escape regex specials
+    const safe = s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(safe, "g"), "[REDACTED]");
+  }
+  // Generic OpenAI / Bearer patterns
+  out = out.replace(/sk-[A-Za-z0-9_-]{16,}/g, "[REDACTED]");
+  out = out.replace(/Bearer\s+[A-Za-z0-9._-]{16,}/gi, "Bearer [REDACTED]");
+  return out;
+}
+
+/**
  * Try an async AI call across providers in order. Returns the first success.
- * Throws an aggregated error if all fail.
+ * Throws an aggregated, secret-redacted error if all fail.
  */
 export async function withProviderFallback<T>(
   fn: (model: LanguageModel, label: string) => Promise<T>,
@@ -55,10 +77,11 @@ export async function withProviderFallback<T>(
     try {
       return await fn(model, label);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = redactSecrets(e instanceof Error ? e.message : String(e));
       console.error(`[ai] provider ${label} failed:`, msg);
       errors.push(`${label}: ${msg}`);
     }
   }
-  throw new Error(`Todos os provedores de IA falharam. ${errors.join(" | ")}`);
+  throw new Error(redactSecrets(`Todos os provedores de IA falharam. ${errors.join(" | ")}`));
 }
+
