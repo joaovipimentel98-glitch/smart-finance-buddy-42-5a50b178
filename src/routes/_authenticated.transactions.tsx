@@ -154,3 +154,28 @@ function TxPage() {
     </div>
   );
 }
+
+function SortableTh({
+  label, col, sortKey, sortDir, onClick,
+}: {
+  label: string;
+  col: SortKey;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onClick: (k: SortKey) => void;
+}) {
+  const active = sortKey === col;
+  const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th className="text-left px-4 py-3 font-medium">
+      <button
+        type="button"
+        onClick={() => onClick(col)}
+        className={`inline-flex items-center gap-1 hover:text-foreground transition ${active ? "text-foreground" : ""}`}
+      >
+        {label}
+        <Icon className="size-3" />
+      </button>
+    </th>
+  );
+}
