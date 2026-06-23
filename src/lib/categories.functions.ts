@@ -62,7 +62,7 @@ export const updateCategory = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const patch: Record<string, unknown> = {};
+    const patch: { name?: string; icon?: string | null; color?: string | null } = {};
     if (data.name !== undefined) patch.name = data.name.trim();
     if (data.icon !== undefined) patch.icon = data.icon;
     if (data.color !== undefined) patch.color = data.color;
