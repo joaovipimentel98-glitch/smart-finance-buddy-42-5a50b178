@@ -29,6 +29,7 @@ function TxPage() {
     queryFn: () => fetchTx({ data: { limit: 300, search: search || undefined } }),
   });
   const { data: cats } = useQuery({ queryKey: ["categories"], queryFn: () => fetchCats() });
+  const catMap = new Map((cats ?? []).map((c) => [c.name, c]));
 
   const onChangeCat = async (id: string, category: string) => {
     try {
