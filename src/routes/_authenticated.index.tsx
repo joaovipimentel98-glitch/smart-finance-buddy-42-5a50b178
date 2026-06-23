@@ -45,8 +45,8 @@ function Dashboard() {
   const [days, setDays] = useState(90);
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const [startDate, setStartDate] = useState<Date>(thirtyDaysAgo);
-  const [endDate, setEndDate] = useState<Date>(new Date());
+  const [startDate, setStartDate] = useState<Date | undefined>(thirtyDaysAgo);
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
 
   const fetchData = useServerFn(getDashboardData);
   const opts = queryOptions({
