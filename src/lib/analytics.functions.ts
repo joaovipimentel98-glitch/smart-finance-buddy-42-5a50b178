@@ -17,18 +17,36 @@ function daysAgo(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+const dashboardInputSchema = z
+  .object({
+    days: z.number().int().min(1).max(3650).optional(),
+    startDate: z.string().date().optional(),
+    endDate: z.string().date().optional(),
+  })
+  .refine(
+    (data) =>
+      data.days !== undefined ||
+      (data.startDate !== undefined && data.endDate !== undefined),
+    { message: "Informe days ou o par startDate/endDate" },
+  );
+
 export const getDashboardData = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z.object({ days: z.number().int().min(1).max(3650).default(90) }).parse(d ?? {}),
-  )
+  .inputValidator((d: unknown) => dashboardInputSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const since = daysAgo(data.days);
+    const since =
+      data.days !== undefined ? daysAgo(data.days) : (data.startDate as string);
+    const until =
+      data.days !== undefined
+        ? new Date().toISOString().slice(0, 10)
+        : (data.endDate as string);
+
     const { data: rows, error } = await context.supabase
       .from("transactions")
       .select("date, amount, transaction_type, category, description, merchant")
       .eq("user_id", context.userId)
       .gte("date", since)
+      .lte("date", until)
       .order("date", { ascending: true });
     if (error) throw new Error(error.message);
     const txns = (rows ?? []) as Txn[];
