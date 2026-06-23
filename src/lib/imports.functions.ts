@@ -37,34 +37,50 @@ function decodeBase64ToArrayBuffer(b64: string): ArrayBuffer {
 
 async function extractFromImageOrPdf(base64: string, mime: string): Promise<ParsedTxn[]> {
   const { getAiProvider, CHAT_MODEL } = await import("./ai-gateway.server");
-  const { generateText, Output } = await import("ai");
+  const { generateObject, NoObjectGeneratedError } = await import("ai");
   const provider = getAiProvider();
   const dataUrl = `data:${mime};base64,${base64}`;
 
-  const { output } = await generateText({
-    model: provider(CHAT_MODEL),
-    output: Output.object({
-      schema: z.object({
-        transactions: z.array(z.object({
-          date: z.string().describe("ISO date YYYY-MM-DD"),
-          description: z.string(),
-          amount: z.number().describe("positive number, no sign"),
-          transaction_type: z.enum(["credit", "debit"]),
-          merchant: z.string().optional(),
-        })),
-      }),
-    }),
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: "Extract all financial transactions from this bank statement / receipt. Return ISO dates (YYYY-MM-DD). amount must be positive; use transaction_type to indicate credit/debit. Use Brazilian Portuguese descriptions verbatim if present." },
-          { type: "image", image: dataUrl },
-        ],
-      },
-    ],
+  const schema = z.object({
+    transactions: z.array(z.object({
+      date: z.string().describe("ISO date YYYY-MM-DD"),
+      description: z.string(),
+      amount: z.number().describe("positive number, no sign"),
+      transaction_type: z.enum(["credit", "debit"]),
+      merchant: z.string().optional(),
+    })),
   });
-  return output.transactions;
+
+  try {
+    const { object } = await generateObject({
+      model: provider(CHAT_MODEL),
+      schema,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Extraia TODAS as transações financeiras deste extrato bancário, fatura de cartão ou recibo. Responda APENAS com JSON válido no schema fornecido. Datas em ISO YYYY-MM-DD. amount sempre positivo (sem sinal). transaction_type='debit' para saídas/gastos e 'credit' para entradas/depósitos. Se não encontrar nenhuma transação, retorne { \"transactions\": [] }. Mantenha descrições originais em português." },
+            { type: "image", image: dataUrl },
+          ],
+        },
+      ],
+    });
+    return object.transactions;
+  } catch (e) {
+    if (NoObjectGeneratedError.isInstance(e)) {
+      const text = (e as { text?: string }).text ?? "";
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          return schema.parse(JSON.parse(match[0])).transactions;
+        } catch {
+          // fall through
+        }
+      }
+      throw new Error("A IA não conseguiu extrair transações deste arquivo. Tente uma imagem mais nítida ou envie CSV/OFX do banco.");
+    }
+    throw e;
+  }
 }
 
 async function aiCategorize(txns: { description: string }[]): Promise<Array<{ category: string; subcategory?: string; confidence: number }>> {
