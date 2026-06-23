@@ -28,7 +28,7 @@ export const Route = createFileRoute("/api/chat")({
         const body = (await request.json()) as { messages?: UIMessage[] };
         const messages = body.messages ?? [];
 
-        const { getChatModels } = await import("@/lib/ai-gateway.server");
+        const { getChatModels, redactSecrets } = await import("@/lib/ai-gateway.server");
         const candidates = getChatModels();
 
         const tools = {
