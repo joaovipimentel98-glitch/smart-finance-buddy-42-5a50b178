@@ -137,6 +137,48 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          ai_provider: string
+          ai_tone: string
+          alert_threshold: number | null
+          avatar_url: string | null
+          banks: string[]
+          created_at: string
+          display_name: string | null
+          id: string
+          monthly_budget: number | null
+          notify_spending: boolean
+          updated_at: string
+        }
+        Insert: {
+          ai_provider?: string
+          ai_tone?: string
+          alert_threshold?: number | null
+          avatar_url?: string | null
+          banks?: string[]
+          created_at?: string
+          display_name?: string | null
+          id: string
+          monthly_budget?: number | null
+          notify_spending?: boolean
+          updated_at?: string
+        }
+        Update: {
+          ai_provider?: string
+          ai_tone?: string
+          alert_threshold?: number | null
+          avatar_url?: string | null
+          banks?: string[]
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          monthly_budget?: number | null
+          notify_spending?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           active: boolean

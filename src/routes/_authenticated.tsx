@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Upload, ListChecks, Sparkles, MessageSquare, LogOut, Wallet, Tag, Menu } from "lucide-react";
+import { LayoutDashboard, Upload, ListChecks, Sparkles, MessageSquare, LogOut, Wallet, Tag, Menu, UserCog } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
@@ -21,6 +21,7 @@ const NAV = [
   { to: "/import", label: "Importar", icon: Upload },
   { to: "/insights", label: "Consultor IA", icon: Sparkles },
   { to: "/chat", label: "Chat", icon: MessageSquare },
+  { to: "/profile", label: "Perfil", icon: UserCog },
 ] as const;
 
 function NavList({ onNavigate, onSignOut }: { onNavigate?: () => void; onSignOut: () => void }) {
