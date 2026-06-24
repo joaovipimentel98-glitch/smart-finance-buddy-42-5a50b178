@@ -24,10 +24,10 @@ const TONES = [
 ] as const;
 
 const DASHBOARD_BACKGROUNDS = [
-  { value: "purple", label: "Roxo", swatch: "bg-[oklch(0.7_0.21_300)]" },
-  { value: "blue", label: "Azul", swatch: "bg-[oklch(0.68_0.17_235)]" },
-  { value: "green", label: "Verde", swatch: "bg-[oklch(0.72_0.17_155)]" },
-  { value: "sunset", label: "Pôr do sol", swatch: "bg-[oklch(0.72_0.19_45)]" },
+  { value: "purple", label: "Roxo neon", swatchGradient: "from-fuchsia-500 to-violet-500" },
+  { value: "blue", label: "Azul oceano", swatchGradient: "from-sky-500 to-blue-700" },
+  { value: "green", label: "Verde mint", swatchGradient: "from-emerald-400 to-teal-700" },
+  { value: "sunset", label: "Pôr do sol", swatchGradient: "from-orange-400 to-rose-700" },
 ] as const;
 
 type DashboardBackground = (typeof DASHBOARD_BACKGROUNDS)[number]["value"];
@@ -242,7 +242,7 @@ function ProfilePage() {
           <div>
             <h2 className="font-semibold">Aparência do dashboard</h2>
             <p className="text-xs text-muted-foreground">
-              Escolha a cor do fundo. A alteração é aplicada na hora e fica salva neste navegador.
+              Escolha uma paleta mais marcante. A alteração muda fundo, cards e destaques na hora.
             </p>
           </div>
         </div>
@@ -262,7 +262,9 @@ function ProfilePage() {
                 aria-pressed={selected}
               >
                 <span className="flex items-center gap-2">
-                  <span className={`size-4 rounded-full ${option.swatch}`} />
+                  <span
+                    className={`size-5 rounded-full bg-gradient-to-br ${option.swatchGradient}`}
+                  />
                   {option.label}
                 </span>
                 {selected && <Check className="size-4 text-primary" />}
