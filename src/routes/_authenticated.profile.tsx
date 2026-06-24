@@ -24,10 +24,10 @@ const TONES = [
 ] as const;
 
 const DASHBOARD_BACKGROUNDS = [
-  { value: "purple", label: "Roxo neon", swatch: "from-fuchsia-500 to-violet-500" },
-  { value: "blue", label: "Azul oceano", swatch: "from-sky-500 to-blue-700" },
-  { value: "green", label: "Verde mint", swatch: "from-emerald-400 to-teal-700" },
-  { value: "sunset", label: "Pôr do sol", swatch: "from-orange-400 to-rose-700" },
+  { value: "purple", label: "Roxo neon", swatchGradient: "from-fuchsia-500 to-violet-500" },
+  { value: "blue", label: "Azul oceano", swatchGradient: "from-sky-500 to-blue-700" },
+  { value: "green", label: "Verde mint", swatchGradient: "from-emerald-400 to-teal-700" },
+  { value: "sunset", label: "Pôr do sol", swatchGradient: "from-orange-400 to-rose-700" },
 ] as const;
 
 type DashboardBackground = (typeof DASHBOARD_BACKGROUNDS)[number]["value"];
@@ -262,7 +262,9 @@ function ProfilePage() {
                 aria-pressed={selected}
               >
                 <span className="flex items-center gap-2">
-                  <span className={`size-5 rounded-full bg-gradient-to-br ${option.swatch}`} />
+                  <span
+                    className={`size-5 rounded-full bg-gradient-to-br ${option.swatchGradient}`}
+                  />
                   {option.label}
                 </span>
                 {selected && <Check className="size-4 text-primary" />}
