@@ -76,13 +76,51 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
-  html, body { background-color: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans); }
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
   body {
     background-image:
-      radial-gradient(1200px 600px at 10% -10%, oklch(0.32 0.12 300 / 0.25), transparent 60%),
-      radial-gradient(900px 500px at 110% 0%, oklch(0.3 0.1 220 / 0.18), transparent 60%);
+      radial-gradient(
+        1200px 600px at 10% -10%,
+        var(--dashboard-bg-start, oklch(0.32 0.12 300 / 0.25)),
+        transparent 60%
+      ),
+      radial-gradient(
+        900px 500px at 110% 0%,
+        var(--dashboard-bg-end, oklch(0.3 0.1 220 / 0.18)),
+        transparent 60%
+      );
     background-attachment: fixed;
+    transition:
+      background-image 0.2s ease,
+      background-color 0.2s ease;
+  }
+
+  :root[data-dashboard-background="purple"] {
+    --dashboard-bg-start: oklch(0.32 0.12 300 / 0.25);
+    --dashboard-bg-end: oklch(0.3 0.1 220 / 0.18);
+  }
+
+  :root[data-dashboard-background="blue"] {
+    --dashboard-bg-start: oklch(0.32 0.12 235 / 0.32);
+    --dashboard-bg-end: oklch(0.28 0.1 205 / 0.2);
+  }
+
+  :root[data-dashboard-background="green"] {
+    --dashboard-bg-start: oklch(0.32 0.12 155 / 0.28);
+    --dashboard-bg-end: oklch(0.28 0.09 185 / 0.18);
+  }
+
+  :root[data-dashboard-background="sunset"] {
+    --dashboard-bg-start: oklch(0.35 0.14 45 / 0.3);
+    --dashboard-bg-end: oklch(0.32 0.12 15 / 0.2);
   }
 }
 
@@ -95,10 +133,14 @@
 }
 
 @utility surface-card-hover {
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 @utility surface-card-hover {
-  &:hover { border-color: oklch(0.5 0.15 300 / 0.5); }
+  &:hover {
+    border-color: oklch(0.5 0.15 300 / 0.5);
+  }
 }
 
 @utility gradient-text {
