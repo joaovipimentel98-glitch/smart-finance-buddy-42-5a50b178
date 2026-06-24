@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Loader2, Plus, X, Upload, User } from "lucide-react";
+import { Check, Loader2, Palette, Plus, X, Upload, User } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   component: ProfilePage,
@@ -22,6 +22,29 @@ const TONES = [
   { value: "direct", label: "Direto" },
   { value: "coach", label: "Coach" },
 ] as const;
+
+const DASHBOARD_BACKGROUNDS = [
+  { value: "purple", label: "Roxo", swatch: "bg-[oklch(0.7_0.21_300)]" },
+  { value: "blue", label: "Azul", swatch: "bg-[oklch(0.68_0.17_235)]" },
+  { value: "green", label: "Verde", swatch: "bg-[oklch(0.72_0.17_155)]" },
+  { value: "sunset", label: "Pôr do sol", swatch: "bg-[oklch(0.72_0.19_45)]" },
+] as const;
+
+type DashboardBackground = (typeof DASHBOARD_BACKGROUNDS)[number]["value"];
+const DASHBOARD_BACKGROUND_STORAGE_KEY = "finance-ai-dashboard-background";
+
+function applyDashboardBackground(value: DashboardBackground) {
+  document.documentElement.dataset.dashboardBackground = value;
+  localStorage.setItem(DASHBOARD_BACKGROUND_STORAGE_KEY, value);
+}
+
+function getStoredDashboardBackground(): DashboardBackground {
+  if (typeof window === "undefined") return "purple";
+  const stored = localStorage.getItem(DASHBOARD_BACKGROUND_STORAGE_KEY);
+  return DASHBOARD_BACKGROUNDS.some((item) => item.value === stored)
+    ? (stored as DashboardBackground)
+    : "purple";
+}
 
 function ProfilePage() {
   const qc = useQueryClient();
@@ -47,6 +70,9 @@ function ProfilePage() {
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [dashboardBackground, setDashboardBackground] = useState<DashboardBackground>(
+    getStoredDashboardBackground,
+  );
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -64,26 +90,40 @@ function ProfilePage() {
   }, [profile]);
 
   useEffect(() => {
+    applyDashboardBackground(dashboardBackground);
+  }, [dashboardBackground]);
+
+  useEffect(() => {
     let cancelled = false;
-    if (!avatarPath) { setAvatarUrl(null); return; }
+    if (!avatarPath) {
+      setAvatarUrl(null);
+      return;
+    }
     signAvatar({ data: { path: avatarPath } })
-      .then((r) => { if (!cancelled) setAvatarUrl(r.url); })
-      .catch(() => { if (!cancelled) setAvatarUrl(null); });
-    return () => { cancelled = true; };
+      .then((r) => {
+        if (!cancelled) setAvatarUrl(r.url);
+      })
+      .catch(() => {
+        if (!cancelled) setAvatarUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [avatarPath, signAvatar]);
 
   const mutation = useMutation({
-    mutationFn: async () => save({
-      data: {
-        display_name: form.display_name.trim() || null,
-        ai_provider: form.ai_provider,
-        ai_tone: form.ai_tone,
-        banks: form.banks,
-        monthly_budget: form.monthly_budget ? Number(form.monthly_budget) : null,
-        alert_threshold: form.alert_threshold ? Number(form.alert_threshold) : null,
-        notify_spending: form.notify_spending,
-      },
-    }),
+    mutationFn: async () =>
+      save({
+        data: {
+          display_name: form.display_name.trim() || null,
+          ai_provider: form.ai_provider,
+          ai_tone: form.ai_tone,
+          banks: form.banks,
+          monthly_budget: form.monthly_budget ? Number(form.monthly_budget) : null,
+          alert_threshold: form.alert_threshold ? Number(form.alert_threshold) : null,
+          notify_spending: form.notify_spending,
+        },
+      }),
     onSuccess: () => {
       toast.success("Perfil atualizado");
       qc.invalidateQueries({ queryKey: ["profile"] });
@@ -94,7 +134,10 @@ function ProfilePage() {
   async function addBank() {
     const v = bankInput.trim();
     if (!v) return;
-    if (form.banks.includes(v)) { setBankInput(""); return; }
+    if (form.banks.includes(v)) {
+      setBankInput("");
+      return;
+    }
     setForm((f) => ({ ...f, banks: [...f.banks, v] }));
     setBankInput("");
   }
@@ -163,8 +206,17 @@ function ProfilePage() {
                 e.target.value = "";
               }}
             />
-            <Button variant="outline" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
-              {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+            >
+              {uploading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Upload className="size-4" />
+              )}
               {uploading ? "Enviando…" : "Trocar foto"}
             </Button>
             <p className="text-xs text-muted-foreground">PNG/JPG até alguns MB.</p>
@@ -178,6 +230,45 @@ function ProfilePage() {
             maxLength={80}
             onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))}
           />
+        </div>
+      </section>
+
+      {/* Aparência */}
+      <section className="surface-card p-5 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="size-10 rounded-xl bg-primary/15 text-primary grid place-items-center border border-primary/20">
+            <Palette className="size-5" />
+          </div>
+          <div>
+            <h2 className="font-semibold">Aparência do dashboard</h2>
+            <p className="text-xs text-muted-foreground">
+              Escolha a cor do fundo. A alteração é aplicada na hora e fica salva neste navegador.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {DASHBOARD_BACKGROUNDS.map((option) => {
+            const selected = dashboardBackground === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setDashboardBackground(option.value)}
+                className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-sm transition ${
+                  selected
+                    ? "border-primary/50 bg-primary/15 text-foreground"
+                    : "border-border text-muted-foreground hover:text-foreground hover:bg-white/5"
+                }`}
+                aria-pressed={selected}
+              >
+                <span className="flex items-center gap-2">
+                  <span className={`size-4 rounded-full ${option.swatch}`} />
+                  {option.label}
+                </span>
+                {selected && <Check className="size-4 text-primary" />}
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -202,7 +293,9 @@ function ProfilePage() {
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">OpenAI usa sua OPENAI_API_KEY; em caso de falha, faz fallback para Lovable AI.</p>
+          <p className="text-xs text-muted-foreground">
+            OpenAI usa sua OPENAI_API_KEY; em caso de falha, faz fallback para Lovable AI.
+          </p>
         </div>
         <div className="space-y-2">
           <Label>Tom das análises</Label>
@@ -234,16 +327,30 @@ function ProfilePage() {
             value={bankInput}
             maxLength={60}
             onChange={(e) => setBankInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addBank(); } }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addBank();
+              }
+            }}
           />
-          <Button type="button" variant="outline" onClick={addBank}><Plus className="size-4" /></Button>
+          <Button type="button" variant="outline" onClick={addBank}>
+            <Plus className="size-4" />
+          </Button>
         </div>
         {form.banks.length > 0 ? (
           <div className="flex flex-wrap gap-2 pt-1">
             {form.banks.map((b) => (
-              <span key={b} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted border border-border">
+              <span
+                key={b}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted border border-border"
+              >
                 {b}
-                <button onClick={() => removeBank(b)} aria-label={`Remover ${b}`} className="text-muted-foreground hover:text-foreground">
+                <button
+                  onClick={() => removeBank(b)}
+                  aria-label={`Remover ${b}`}
+                  className="text-muted-foreground hover:text-foreground"
+                >
                   <X className="size-3" />
                 </button>
               </span>
@@ -260,20 +367,38 @@ function ProfilePage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <Label htmlFor="notify">Alertas de gastos</Label>
-            <p className="text-xs text-muted-foreground">Receber avisos quando ultrapassar o limite.</p>
+            <p className="text-xs text-muted-foreground">
+              Receber avisos quando ultrapassar o limite.
+            </p>
           </div>
-          <Switch id="notify" checked={form.notify_spending} onCheckedChange={(v) => setForm((f) => ({ ...f, notify_spending: v }))} />
+          <Switch
+            id="notify"
+            checked={form.notify_spending}
+            onCheckedChange={(v) => setForm((f) => ({ ...f, notify_spending: v }))}
+          />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="budget">Meta mensal (R$)</Label>
-            <Input id="budget" type="number" min={0} step="0.01" value={form.monthly_budget}
-              onChange={(e) => setForm((f) => ({ ...f, monthly_budget: e.target.value }))} />
+            <Input
+              id="budget"
+              type="number"
+              min={0}
+              step="0.01"
+              value={form.monthly_budget}
+              onChange={(e) => setForm((f) => ({ ...f, monthly_budget: e.target.value }))}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="alert">Limite de alerta (R$)</Label>
-            <Input id="alert" type="number" min={0} step="0.01" value={form.alert_threshold}
-              onChange={(e) => setForm((f) => ({ ...f, alert_threshold: e.target.value }))} />
+            <Input
+              id="alert"
+              type="number"
+              min={0}
+              step="0.01"
+              value={form.alert_threshold}
+              onChange={(e) => setForm((f) => ({ ...f, alert_threshold: e.target.value }))}
+            />
           </div>
         </div>
       </section>

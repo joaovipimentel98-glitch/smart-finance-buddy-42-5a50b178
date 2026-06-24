@@ -1,7 +1,18 @@
 import { createFileRoute, Outlet, redirect, Link, useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Upload, ListChecks, Sparkles, MessageSquare, LogOut, Wallet, Tag, Menu, UserCog } from "lucide-react";
-import { useState } from "react";
+import {
+  LayoutDashboard,
+  Upload,
+  ListChecks,
+  Sparkles,
+  MessageSquare,
+  LogOut,
+  Wallet,
+  Tag,
+  Menu,
+  UserCog,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -43,7 +54,10 @@ function NavList({ onNavigate, onSignOut }: { onNavigate?: () => void; onSignOut
             to={to}
             onClick={onNavigate}
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/80 hover:bg-white/5 hover:text-foreground transition"
-            activeProps={{ className: "flex items-center gap-3 px-3 py-2 rounded-lg text-sm bg-primary/15 text-foreground border border-primary/20" }}
+            activeProps={{
+              className:
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm bg-primary/15 text-foreground border border-primary/20",
+            }}
             activeOptions={{ exact: to === "/" }}
           >
             <Icon className="size-4" />
@@ -52,7 +66,10 @@ function NavList({ onNavigate, onSignOut }: { onNavigate?: () => void; onSignOut
         ))}
       </nav>
       <div className="p-3 border-t border-sidebar-border">
-        <button onClick={onSignOut} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition">
+        <button
+          onClick={onSignOut}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition"
+        >
           <LogOut className="size-4" /> Sair
         </button>
       </div>
@@ -60,9 +77,21 @@ function NavList({ onNavigate, onSignOut }: { onNavigate?: () => void; onSignOut
   );
 }
 
+const DASHBOARD_BACKGROUND_STORAGE_KEY = "finance-ai-dashboard-background";
+const DASHBOARD_BACKGROUNDS = ["purple", "blue", "green", "sunset"] as const;
+
 function AppShell() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(DASHBOARD_BACKGROUND_STORAGE_KEY);
+    document.documentElement.dataset.dashboardBackground = DASHBOARD_BACKGROUNDS.includes(
+      stored as (typeof DASHBOARD_BACKGROUNDS)[number],
+    )
+      ? stored!
+      : "purple";
+  }, []);
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.navigate({ to: "/auth" });
@@ -94,7 +123,11 @@ function AppShell() {
             </SheetContent>
           </Sheet>
           <span className="font-semibold gradient-text">Finance AI</span>
-          <button onClick={handleSignOut} aria-label="Sair" className="size-10 grid place-items-center rounded-lg text-muted-foreground hover:bg-white/5">
+          <button
+            onClick={handleSignOut}
+            aria-label="Sair"
+            className="size-10 grid place-items-center rounded-lg text-muted-foreground hover:bg-white/5"
+          >
             <LogOut className="size-4" />
           </button>
         </div>
