@@ -21,9 +21,11 @@ export const Route = createFileRoute("/api/chat")({
           global: { headers: { Authorization: `Bearer ${token}` } },
           auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
         });
-        const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-        if (userErr || !userData.user) return new Response("Unauthorized", { status: 401 });
-        const userId = userData.user.id;
+        const { data, error } = await supabase.auth.getUser();
+        if (error || !data.user) {
+            return new Response("Unauthorized", { status: 401 });}
+        
+        const userId = data.user.id;
 
         const body = (await request.json()) as { messages?: UIMessage[] };
         const messages = body.messages ?? [];
