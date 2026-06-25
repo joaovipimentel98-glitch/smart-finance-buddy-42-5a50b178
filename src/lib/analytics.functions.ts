@@ -9,6 +9,10 @@ type Txn = {
   category: string;
   description: string;
   merchant: string | null;
+  is_investment?: boolean;
+};
+  description: string;
+  merchant: string | null;
 };
 
 function daysAgo(n: number): string {
