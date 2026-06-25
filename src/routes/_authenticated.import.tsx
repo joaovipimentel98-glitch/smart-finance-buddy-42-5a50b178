@@ -35,6 +35,8 @@ function ImportPage() {
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [newCatOpen, setNewCatOpen] = useState(false);
   const [newCatName, setNewCatName] = useState("");
+  const [source, setSource] = useState<"import" | "credit_card">("import");
+  const [isInvestment, setIsInvestment] = useState(false);
 
   const { data: uploads } = useQuery({ queryKey: ["uploads"], queryFn: () => fetchUploads() });
   const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => fetchCategories() });
@@ -87,6 +89,8 @@ function ImportPage() {
         data: {
           fileName: preview.fileName,
           fileType: preview.fileType,
+          source,
+          isInvestment,
           txns: toSave.map(({ _id, _keep, ...t }) => t),
         },
       });
