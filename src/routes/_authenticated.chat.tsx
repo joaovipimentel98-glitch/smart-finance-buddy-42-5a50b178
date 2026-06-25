@@ -20,12 +20,13 @@ const SUGGESTIONS = [
 
 function ChatPage() {
   const [token, setToken] = useState<string | null>(null);
-    useEffect(() => {
-      console.log("TOKEN ATUAL:", token);
-    }, [token]);
   const [input, setInput] = useState("");
   const scrollerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    console.log("TOKEN ATUAL:", token);
+  }, [token]);
+  
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setToken(data.session?.access_token ?? null));
   }, []);
