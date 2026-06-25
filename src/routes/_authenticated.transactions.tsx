@@ -3,8 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { listTransactions, updateTransactionCategory, deleteTransaction } from "@/lib/transactions.functions";
+import { toggleInvestment } from "@/lib/investments.functions";
 import { listCategories } from "@/lib/categories.functions";
-import { Search, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Search, Trash2, ArrowUp, ArrowDown, ArrowUpDown, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
@@ -28,6 +29,7 @@ function TxPage() {
   const fetchCats = useServerFn(listCategories);
   const updateCat = useServerFn(updateTransactionCategory);
   const removeTx = useServerFn(deleteTransaction);
+  const doToggleInv = useServerFn(toggleInvestment);
 
   const { data: txns } = useQuery({
     queryKey: ["transactions", search],
@@ -75,6 +77,19 @@ function TxPage() {
       await removeTx({ data: { id } });
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro");
+    }
+  };
+
+  const onToggleInv = async (id: string, current: boolean) => {
+    try {
+      await doToggleInv({ data: { id, isInvestment: !current } });
+      toast.success(!current ? "Marcado como investimento" : "Removido dos investimentos");
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["investments-summary"] });
+      qc.invalidateQueries({ queryKey: ["investments-list"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro");
     }
