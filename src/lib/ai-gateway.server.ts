@@ -3,7 +3,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
 
-export const CHAT_MODEL = "gpt-4o-mini";
+export const CHAT_MODEL = "google/gemini-2.5-flash";
 export const OPENAI_CHAT_MODEL = "gpt-4o-mini";
 
 function lovableProvider() {
@@ -27,31 +27,29 @@ function openaiProvider() {
 
 // Back-compat: returns Lovable provider (used by code that calls provider(MODEL))
 export function getAiProvider() {
-  const oa = openaiProvider();
-
-  if (!oa) {
-    throw new Error("OPENAI_API_KEY não configurada");
-  }
-
-  return oa;
+  return lovableProvider();
 }
 /**
  * Returns an ordered list of [label, model] candidates.
  * Prefers OpenAI when OPENAI_API_KEY is set, falls back to Lovable Gemini.
  */
 export function getChatModels(): Array<{ label: string; model: LanguageModel }> {
+  const out: Array<{ label: string; model: LanguageModel }> = [];
   const oa = openaiProvider();
 
-  if (!oa) {
-    throw new Error("OPENAI_API_KEY não configurada");
-  }
-
-  return [
-    {
+  if (oa) {
+    out.push({
       label: `openai:${OPENAI_CHAT_MODEL}`,
       model: oa(OPENAI_CHAT_MODEL),
-    },
-  ];
+    });
+  }
+
+  out.push({
+    label: `lovable:${CHAT_MODEL}`,
+    model: lovableProvider()(CHAT_MODEL),
+  });
+
+  return out;
 }
 
 /**
