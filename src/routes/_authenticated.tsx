@@ -11,6 +11,8 @@ import {
   Tag,
   Menu,
   UserCog,
+  TrendingUp,
+  CreditCard,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -28,6 +30,8 @@ export const Route = createFileRoute("/_authenticated")({
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/transactions", label: "Transações", icon: ListChecks },
+  { to: "/investments", label: "Investimentos", icon: TrendingUp },
+  { to: "/credit-card", label: "Fatura cartão", icon: CreditCard },
   { to: "/categories", label: "Categorias", icon: Tag },
   { to: "/import", label: "Importar", icon: Upload },
   { to: "/insights", label: "Consultor IA", icon: Sparkles },

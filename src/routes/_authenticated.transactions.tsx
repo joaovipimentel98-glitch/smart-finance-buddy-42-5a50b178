@@ -3,8 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { listTransactions, updateTransactionCategory, deleteTransaction } from "@/lib/transactions.functions";
+import { toggleInvestment } from "@/lib/investments.functions";
 import { listCategories } from "@/lib/categories.functions";
-import { Search, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Search, Trash2, ArrowUp, ArrowDown, ArrowUpDown, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
@@ -28,6 +29,7 @@ function TxPage() {
   const fetchCats = useServerFn(listCategories);
   const updateCat = useServerFn(updateTransactionCategory);
   const removeTx = useServerFn(deleteTransaction);
+  const doToggleInv = useServerFn(toggleInvestment);
 
   const { data: txns } = useQuery({
     queryKey: ["transactions", search],
@@ -75,6 +77,19 @@ function TxPage() {
       await removeTx({ data: { id } });
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro");
+    }
+  };
+
+  const onToggleInv = async (id: string, current: boolean) => {
+    try {
+      await doToggleInv({ data: { id, isInvestment: !current } });
+      toast.success(!current ? "Marcado como investimento" : "Removido dos investimentos");
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["investments-summary"] });
+      qc.invalidateQueries({ queryKey: ["investments-list"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro");
     }
@@ -154,9 +169,19 @@ function TxPage() {
                 <div className={`text-sm font-semibold whitespace-nowrap ${t.transaction_type === "credit" ? "text-success" : "text-destructive"}`}>
                   {fmtBRL(Number(t.amount))}
                 </div>
-                <button onClick={() => onDelete(t.id)} aria-label="Excluir" className="text-muted-foreground hover:text-destructive transition p-1">
-                  <Trash2 className="size-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => onToggleInv(t.id, t.is_investment)}
+                    aria-label="Marcar como investimento"
+                    title={t.is_investment ? "É investimento — clique para desmarcar" : "Marcar como investimento"}
+                    className={`p-1 transition ${t.is_investment ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+                  >
+                    <TrendingUp className="size-4" />
+                  </button>
+                  <button onClick={() => onDelete(t.id)} aria-label="Excluir" className="text-muted-foreground hover:text-destructive transition p-1">
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -214,9 +239,18 @@ function TxPage() {
                     {fmtBRL(Number(t.amount))}
                   </td>
                   <td className="px-4 py-3">
-                    <button onClick={() => onDelete(t.id)} className="text-muted-foreground hover:text-destructive transition">
-                      <Trash2 className="size-4" />
-                    </button>
+                    <div className="flex items-center gap-1 justify-end">
+                      <button
+                        onClick={() => onToggleInv(t.id, t.is_investment)}
+                        title={t.is_investment ? "É investimento — clique para desmarcar" : "Marcar como investimento"}
+                        className={`transition ${t.is_investment ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+                      >
+                        <TrendingUp className="size-4" />
+                      </button>
+                      <button onClick={() => onDelete(t.id)} className="text-muted-foreground hover:text-destructive transition">
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

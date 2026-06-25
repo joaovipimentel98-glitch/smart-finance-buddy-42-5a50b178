@@ -226,6 +226,8 @@ export const previewImport = createServerFn({ method: "POST" })
 const CommitInput = z.object({
   fileName: z.string().min(1),
   fileType: z.string().min(1),
+  source: z.enum(["manual", "import", "credit_card"]).default("import"),
+  isInvestment: z.boolean().default(false),
   txns: z.array(z.object({
     date: z.string(),
     description: z.string(),
@@ -246,7 +248,7 @@ export const commitImport = createServerFn({ method: "POST" })
     const reqId = Math.random().toString(36).slice(2, 8);
     const kind = detectKind(data.fileName, data.fileType);
 
-    logStep(reqId, "commit-start", { count: data.txns.length, fileName: data.fileName });
+    logStep(reqId, "commit-start", { count: data.txns.length, fileName: data.fileName, source: data.source });
 
     const { data: fileRow, error: fileErr } = await supabase
       .from("uploaded_files")
@@ -262,9 +264,11 @@ export const commitImport = createServerFn({ method: "POST" })
       merchant: t.merchant ?? t.description.slice(0, 60),
       amount: t.amount,
       transaction_type: t.transaction_type,
-      category: t.category,
+      category: data.isInvestment ? "Investimentos" : t.category,
       subcategory: t.subcategory,
       source_file: data.fileName,
+      source: data.source,
+      is_investment: data.isInvestment,
       import_batch: fileRow.import_batch,
       confidence: t.confidence ?? 1.0,
     }));

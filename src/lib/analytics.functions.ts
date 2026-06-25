@@ -9,6 +9,7 @@ type Txn = {
   category: string;
   description: string;
   merchant: string | null;
+  is_investment?: boolean;
 };
 
 function daysAgo(n: number): string {
@@ -43,7 +44,7 @@ export const getDashboardData = createServerFn({ method: "GET" })
 
     const { data: rows, error } = await context.supabase
       .from("transactions")
-      .select("date, amount, transaction_type, category, description, merchant")
+      .select("date, amount, transaction_type, category, description, merchant, is_investment")
       .eq("user_id", context.userId)
       .gte("date", since)
       .lte("date", until)
@@ -58,6 +59,7 @@ export const getDashboardData = createServerFn({ method: "GET" })
 
     for (const t of txns) {
       const amt = Number(t.amount);
+      if (t.is_investment) continue;
       if (t.transaction_type === "credit") totalIncome += amt;
       else {
         totalExpense += amt;
@@ -89,6 +91,7 @@ export const getDashboardData = createServerFn({ method: "GET" })
     let monthExpense = 0;
     for (const t of txns) {
       if (t.date < monthIso) continue;
+      if (t.is_investment) continue;
       const a = Number(t.amount);
       if (t.transaction_type === "credit") monthIncome += a;
       else monthExpense += a;
@@ -96,7 +99,7 @@ export const getDashboardData = createServerFn({ method: "GET" })
     const monthBalance = monthIncome - monthExpense;
 
     const topExpenses = txns
-      .filter((t) => t.transaction_type === "debit")
+      .filter((t) => t.transaction_type === "debit" && !t.is_investment)
       .sort((a, b) => Number(b.amount) - Number(a.amount))
       .slice(0, 10)
       .map((t) => ({
