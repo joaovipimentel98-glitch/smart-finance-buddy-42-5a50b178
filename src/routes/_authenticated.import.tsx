@@ -156,6 +156,34 @@ function ImportPage() {
           </div>
         </header>
 
+        <div className="surface-card p-4 mb-4 flex flex-wrap items-center gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground uppercase tracking-wider">Origem:</span>
+            <div className="inline-flex rounded-lg border border-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setSource("import")}
+                className={`px-3 py-1.5 text-xs ${source === "import" ? "bg-primary text-primary-foreground" : "hover:bg-white/5"}`}
+              >Banco / extrato</button>
+              <button
+                type="button"
+                onClick={() => setSource("credit_card")}
+                className={`px-3 py-1.5 text-xs ${source === "credit_card" ? "bg-primary text-primary-foreground" : "hover:bg-white/5"}`}
+              >Fatura de cartão</button>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isInvestment}
+              onChange={(e) => setIsInvestment(e.target.checked)}
+              className="accent-primary"
+            />
+            <span className="text-xs">Marcar tudo como <strong>Investimento</strong> (fica fora do gasto mensal)</span>
+          </label>
+        </div>
+
+
         <div className="surface-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
