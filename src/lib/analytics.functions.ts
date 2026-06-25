@@ -59,6 +59,7 @@ export const getDashboardData = createServerFn({ method: "GET" })
 
     for (const t of txns) {
       const amt = Number(t.amount);
+      if (t.is_investment) continue;
       if (t.transaction_type === "credit") totalIncome += amt;
       else {
         totalExpense += amt;
@@ -90,6 +91,7 @@ export const getDashboardData = createServerFn({ method: "GET" })
     let monthExpense = 0;
     for (const t of txns) {
       if (t.date < monthIso) continue;
+      if (t.is_investment) continue;
       const a = Number(t.amount);
       if (t.transaction_type === "credit") monthIncome += a;
       else monthExpense += a;
@@ -97,7 +99,7 @@ export const getDashboardData = createServerFn({ method: "GET" })
     const monthBalance = monthIncome - monthExpense;
 
     const topExpenses = txns
-      .filter((t) => t.transaction_type === "debit")
+      .filter((t) => t.transaction_type === "debit" && !t.is_investment)
       .sort((a, b) => Number(b.amount) - Number(a.amount))
       .slice(0, 10)
       .map((t) => ({
