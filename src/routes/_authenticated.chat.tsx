@@ -21,7 +21,7 @@ const SUGGESTIONS = [
 function ChatPage() {
   const [token, setToken] = useState<string | null>(null);
   useEffect(() => {
-    console.log("TOKEN ATUAL:", token);
+  console.log("TOKEN ATUAL:", token);
   }, [token]);
   const [input, setInput] = useState("");
   const scrollerRef = useRef<HTMLDivElement>(null);
