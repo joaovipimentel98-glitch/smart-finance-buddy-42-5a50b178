@@ -222,7 +222,9 @@ export type Database = {
           description: string
           id: string
           import_batch: string | null
+          is_investment: boolean
           merchant: string | null
+          source: string
           source_file: string | null
           subcategory: string | null
           transaction_type: Database["public"]["Enums"]["transaction_type"]
@@ -237,7 +239,9 @@ export type Database = {
           description: string
           id?: string
           import_batch?: string | null
+          is_investment?: boolean
           merchant?: string | null
+          source?: string
           source_file?: string | null
           subcategory?: string | null
           transaction_type: Database["public"]["Enums"]["transaction_type"]
@@ -252,7 +256,9 @@ export type Database = {
           description?: string
           id?: string
           import_batch?: string | null
+          is_investment?: boolean
           merchant?: string | null
+          source?: string
           source_file?: string | null
           subcategory?: string | null
           transaction_type?: Database["public"]["Enums"]["transaction_type"]
