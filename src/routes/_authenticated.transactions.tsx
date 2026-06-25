@@ -169,9 +169,19 @@ function TxPage() {
                 <div className={`text-sm font-semibold whitespace-nowrap ${t.transaction_type === "credit" ? "text-success" : "text-destructive"}`}>
                   {fmtBRL(Number(t.amount))}
                 </div>
-                <button onClick={() => onDelete(t.id)} aria-label="Excluir" className="text-muted-foreground hover:text-destructive transition p-1">
-                  <Trash2 className="size-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => onToggleInv(t.id, t.is_investment)}
+                    aria-label="Marcar como investimento"
+                    title={t.is_investment ? "É investimento — clique para desmarcar" : "Marcar como investimento"}
+                    className={`p-1 transition ${t.is_investment ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+                  >
+                    <TrendingUp className="size-4" />
+                  </button>
+                  <button onClick={() => onDelete(t.id)} aria-label="Excluir" className="text-muted-foreground hover:text-destructive transition p-1">
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -229,9 +239,18 @@ function TxPage() {
                     {fmtBRL(Number(t.amount))}
                   </td>
                   <td className="px-4 py-3">
-                    <button onClick={() => onDelete(t.id)} className="text-muted-foreground hover:text-destructive transition">
-                      <Trash2 className="size-4" />
-                    </button>
+                    <div className="flex items-center gap-1 justify-end">
+                      <button
+                        onClick={() => onToggleInv(t.id, t.is_investment)}
+                        title={t.is_investment ? "É investimento — clique para desmarcar" : "Marcar como investimento"}
+                        className={`transition ${t.is_investment ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+                      >
+                        <TrendingUp className="size-4" />
+                      </button>
+                      <button onClick={() => onDelete(t.id)} className="text-muted-foreground hover:text-destructive transition">
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
