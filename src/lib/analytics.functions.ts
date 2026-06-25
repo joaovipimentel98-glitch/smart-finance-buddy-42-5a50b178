@@ -11,9 +11,6 @@ type Txn = {
   merchant: string | null;
   is_investment?: boolean;
 };
-  description: string;
-  merchant: string | null;
-};
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -47,7 +44,7 @@ export const getDashboardData = createServerFn({ method: "GET" })
 
     const { data: rows, error } = await context.supabase
       .from("transactions")
-      .select("date, amount, transaction_type, category, description, merchant")
+      .select("date, amount, transaction_type, category, description, merchant, is_investment")
       .eq("user_id", context.userId)
       .gte("date", since)
       .lte("date", until)
