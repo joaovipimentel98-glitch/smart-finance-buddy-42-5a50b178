@@ -26,9 +26,12 @@ function ImportPage() {
   const qc = useQueryClient();
   const fetchUploads = useServerFn(listUploads);
   const fetchCategories = useServerFn(listCategories);
+  const fetchProfile = useServerFn(getProfile);
   const addCategory = useServerFn(createCategory);
   const doPreview = useServerFn(previewImport);
   const doCommit = useServerFn(commitImport);
+  const doUpdateUpload = useServerFn(updateUpload);
+  const doDeleteUpload = useServerFn(deleteUpload);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<"idle" | "previewing" | "committing">("idle");
@@ -38,9 +41,12 @@ function ImportPage() {
   const [newCatName, setNewCatName] = useState("");
   const [source, setSource] = useState<"import" | "credit_card">("import");
   const [isInvestment, setIsInvestment] = useState(false);
+  const [bank, setBank] = useState<string>("");
 
   const { data: uploads } = useQuery({ queryKey: ["uploads"], queryFn: () => fetchUploads() });
   const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => fetchCategories() });
+  const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => fetchProfile() });
+  const banks: string[] = useMemo(() => (profile as { banks?: string[] } | undefined)?.banks ?? [], [profile]);
   const categoryNames = useMemo(() => (categories ?? []).map((c) => c.name), [categories]);
 
   const handleFiles = async (files: FileList | File[]) => {
