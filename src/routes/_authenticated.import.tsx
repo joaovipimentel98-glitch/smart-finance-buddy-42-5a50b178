@@ -42,6 +42,8 @@ function ImportPage() {
   const [source, setSource] = useState<"import" | "credit_card">("import");
   const [isInvestment, setIsInvestment] = useState(false);
   const [bank, setBank] = useState<string>("");
+  const [selectedUploads, setSelectedUploads] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const { data: uploads } = useQuery({ queryKey: ["uploads"], queryFn: () => fetchUploads() });
   const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => fetchCategories() });
