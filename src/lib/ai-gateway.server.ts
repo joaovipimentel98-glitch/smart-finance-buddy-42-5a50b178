@@ -36,9 +36,10 @@ export function getAiProvider() {
  */
 export function getChatModels(): Array<{ label: string; model: LanguageModel }> {
   const out: Array<{ label: string; model: LanguageModel }> = [];
+  // Prefer Lovable AI Gateway (managed, no key setup) — fall back to OpenAI if available.
+  out.push({ label: `lovable:${CHAT_MODEL}`, model: lovableProvider()(CHAT_MODEL) });
   const oa = openaiProvider();
   if (oa) out.push({ label: `openai:${OPENAI_CHAT_MODEL}`, model: oa(OPENAI_CHAT_MODEL) });
-  out.push({ label: `lovable:${CHAT_MODEL}`, model: lovableProvider()(CHAT_MODEL) });
   return out;
 }
 
