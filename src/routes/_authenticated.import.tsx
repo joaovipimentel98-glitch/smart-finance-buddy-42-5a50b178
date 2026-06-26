@@ -344,10 +344,77 @@ function ImportPage() {
           ))}
         </div>
 
-        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">Histórico de uploads</h2>
+        <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Histórico de uploads</h2>
+          {(uploads ?? []).length > 0 && (
+            <div className="flex items-center gap-2 text-xs">
+              <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                <input
+                  type="checkbox"
+                  className="accent-primary"
+                  checked={selectedUploads.size > 0 && selectedUploads.size === (uploads ?? []).length}
+                  ref={(el) => { if (el) el.indeterminate = selectedUploads.size > 0 && selectedUploads.size < (uploads ?? []).length; }}
+                  onChange={(e) => {
+                    setSelectedUploads(e.target.checked ? new Set((uploads ?? []).map((u) => u.id)) : new Set());
+                  }}
+                />
+                Selecionar todos
+              </label>
+              <button
+                disabled={selectedUploads.size === 0 || bulkDeleting}
+                onClick={async () => {
+                  const ids = Array.from(selectedUploads);
+                  const totalRecords = (uploads ?? [])
+                    .filter((u) => selectedUploads.has(u.id))
+                    .reduce((s, u) => s + (u.records_found ?? 0), 0);
+                  if (!confirm(`Apagar ${ids.length} arquivo(s) e ${totalRecords} transações relacionadas?`)) return;
+                  setBulkDeleting(true);
+                  let okCount = 0;
+                  let txnCount = 0;
+                  const failed: string[] = [];
+                  for (const id of ids) {
+                    try {
+                      const res = await doDeleteUpload({ data: { id, deleteTransactions: true } });
+                      okCount += 1;
+                      txnCount += res.deletedTransactions ?? 0;
+                    } catch (err) {
+                      failed.push(err instanceof Error ? err.message : String(err));
+                    }
+                  }
+                  setBulkDeleting(false);
+                  setSelectedUploads(new Set());
+                  qc.invalidateQueries({ queryKey: ["uploads"] });
+                  qc.invalidateQueries({ queryKey: ["transactions"] });
+                  qc.invalidateQueries({ queryKey: ["dashboard"] });
+                  if (failed.length === 0) {
+                    toast.success(`${okCount} arquivo(s) apagado(s) · ${txnCount} transações removidas`);
+                  } else {
+                    toast.error(`${okCount} ok, ${failed.length} falhou(aram): ${failed[0]}`, { duration: 8000 });
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg bg-destructive/15 text-destructive text-xs font-medium hover:bg-destructive/25 disabled:opacity-40 disabled:hover:bg-destructive/15 flex items-center gap-1.5"
+              >
+                {bulkDeleting ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                Excluir selecionados {selectedUploads.size > 0 && `(${selectedUploads.size})`}
+              </button>
+            </div>
+          )}
+        </div>
         <div className="space-y-2">
           {(uploads ?? []).map((u) => (
-            <div key={u.id} className="surface-card p-4 flex items-center gap-4 flex-wrap">
+            <div key={u.id} className={`surface-card p-4 flex items-center gap-4 flex-wrap ${selectedUploads.has(u.id) ? "ring-1 ring-primary/40" : ""}`}>
+              <input
+                type="checkbox"
+                className="accent-primary"
+                checked={selectedUploads.has(u.id)}
+                onChange={(e) => {
+                  setSelectedUploads((prev) => {
+                    const next = new Set(prev);
+                    if (e.target.checked) next.add(u.id); else next.delete(u.id);
+                    return next;
+                  });
+                }}
+              />
               <FileText className="size-5 text-muted-foreground shrink-0" />
               <div className="flex-1 min-w-[200px]">
                 <div className="font-medium truncate">{u.file_name}</div>
