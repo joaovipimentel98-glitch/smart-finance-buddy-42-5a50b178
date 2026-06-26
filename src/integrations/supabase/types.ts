@@ -215,6 +215,7 @@ export type Database = {
       transactions: {
         Row: {
           amount: number
+          bank: string | null
           category: string
           confidence: number | null
           created_at: string
@@ -232,6 +233,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          bank?: string | null
           category?: string
           confidence?: number | null
           created_at?: string
@@ -249,6 +251,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          bank?: string | null
           category?: string
           confidence?: number | null
           created_at?: string
@@ -268,6 +271,7 @@ export type Database = {
       }
       uploaded_files: {
         Row: {
+          bank: string | null
           file_name: string
           file_type: string
           id: string
@@ -279,6 +283,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bank?: string | null
           file_name: string
           file_type: string
           id?: string
@@ -290,6 +295,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bank?: string | null
           file_name?: string
           file_type?: string
           id?: string

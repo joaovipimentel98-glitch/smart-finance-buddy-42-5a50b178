@@ -228,6 +228,7 @@ const CommitInput = z.object({
   fileType: z.string().min(1),
   source: z.enum(["manual", "import", "credit_card"]).default("import"),
   isInvestment: z.boolean().default(false),
+  bank: z.string().trim().max(60).nullable().optional(),
   txns: z.array(z.object({
     date: z.string(),
     description: z.string(),
@@ -248,11 +249,11 @@ export const commitImport = createServerFn({ method: "POST" })
     const reqId = Math.random().toString(36).slice(2, 8);
     const kind = detectKind(data.fileName, data.fileType);
 
-    logStep(reqId, "commit-start", { count: data.txns.length, fileName: data.fileName, source: data.source });
+    logStep(reqId, "commit-start", { count: data.txns.length, fileName: data.fileName, source: data.source, bank: data.bank });
 
     const { data: fileRow, error: fileErr } = await supabase
       .from("uploaded_files")
-      .insert({ user_id: userId, file_name: data.fileName, file_type: kind, processed: false })
+      .insert({ user_id: userId, file_name: data.fileName, file_type: kind, processed: false, bank: data.bank ?? null })
       .select("id, import_batch")
       .single();
     if (fileErr || !fileRow) throw new Error(fileErr?.message ?? "Falha ao registrar arquivo");
@@ -269,6 +270,7 @@ export const commitImport = createServerFn({ method: "POST" })
       source_file: data.fileName,
       source: data.source,
       is_investment: data.isInvestment,
+      bank: data.bank ?? null,
       import_batch: fileRow.import_batch,
       confidence: t.confidence ?? 1.0,
     }));
@@ -291,8 +293,6 @@ export const commitImport = createServerFn({ method: "POST" })
     return { imported: rows.length, fileId: fileRow.id };
   });
 
-
-
 export const listUploads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -304,4 +304,48 @@ export const listUploads = createServerFn({ method: "GET" })
       .limit(50);
     if (error) throw new Error(error.message);
     return data ?? [];
+  });
+
+export const updateUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    id: z.string().uuid(),
+    bank: z.string().trim().max(60).nullable().optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: file, error: fErr } = await supabase
+      .from("uploaded_files").select("import_batch").eq("id", data.id).eq("user_id", userId).single();
+    if (fErr || !file) throw new Error("Arquivo não encontrado");
+    const patch: { bank?: string | null } = {};
+    if (data.bank !== undefined) patch.bank = data.bank;
+    const { error } = await supabase.from("uploaded_files").update(patch).eq("id", data.id).eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    if (data.bank !== undefined && file.import_batch) {
+      await supabase.from("transactions").update({ bank: data.bank }).eq("user_id", userId).eq("import_batch", file.import_batch);
+    }
+    return { ok: true };
+  });
+
+export const deleteUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    id: z.string().uuid(),
+    deleteTransactions: z.boolean().default(true),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: file, error: fErr } = await supabase
+      .from("uploaded_files").select("id, import_batch").eq("id", data.id).eq("user_id", userId).single();
+    if (fErr || !file) throw new Error("Arquivo não encontrado");
+    let deletedTxns = 0;
+    if (data.deleteTransactions && file.import_batch) {
+      const { count } = await supabase
+        .from("transactions").delete({ count: "exact" })
+        .eq("user_id", userId).eq("import_batch", file.import_batch);
+      deletedTxns = count ?? 0;
+    }
+    const { error: delErr } = await supabase.from("uploaded_files").delete().eq("id", data.id).eq("user_id", userId);
+    if (delErr) throw new Error(delErr.message);
+    return { ok: true, deletedTransactions: deletedTxns };
   });

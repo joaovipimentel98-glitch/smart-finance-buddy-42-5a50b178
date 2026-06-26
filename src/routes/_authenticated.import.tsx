@@ -2,9 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useRef, useState } from "react";
-import { previewImport, commitImport, listUploads, type PreviewTxn } from "@/lib/imports.functions";
+import { previewImport, commitImport, listUploads, updateUpload, deleteUpload, type PreviewTxn } from "@/lib/imports.functions";
 import { listCategories, createCategory } from "@/lib/categories.functions";
-import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, Trash2, Plus, X } from "lucide-react";
+import { getProfile } from "@/lib/profile.functions";
+import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, Trash2, Plus, X, Landmark } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/import")({
@@ -25,9 +26,12 @@ function ImportPage() {
   const qc = useQueryClient();
   const fetchUploads = useServerFn(listUploads);
   const fetchCategories = useServerFn(listCategories);
+  const fetchProfile = useServerFn(getProfile);
   const addCategory = useServerFn(createCategory);
   const doPreview = useServerFn(previewImport);
   const doCommit = useServerFn(commitImport);
+  const doUpdateUpload = useServerFn(updateUpload);
+  const doDeleteUpload = useServerFn(deleteUpload);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<"idle" | "previewing" | "committing">("idle");
@@ -37,9 +41,12 @@ function ImportPage() {
   const [newCatName, setNewCatName] = useState("");
   const [source, setSource] = useState<"import" | "credit_card">("import");
   const [isInvestment, setIsInvestment] = useState(false);
+  const [bank, setBank] = useState<string>("");
 
   const { data: uploads } = useQuery({ queryKey: ["uploads"], queryFn: () => fetchUploads() });
   const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => fetchCategories() });
+  const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => fetchProfile() });
+  const banks: string[] = useMemo(() => (profile as { banks?: string[] } | undefined)?.banks ?? [], [profile]);
   const categoryNames = useMemo(() => (categories ?? []).map((c) => c.name), [categories]);
 
   const handleFiles = async (files: FileList | File[]) => {
@@ -91,11 +98,13 @@ function ImportPage() {
           fileType: preview.fileType,
           source,
           isInvestment,
+          bank: bank.trim() || null,
           txns: toSave.map(({ _id, _keep, ...t }) => t),
         },
       });
       toast.success(`${res.imported} transações salvas`);
       setPreview(null);
+      setBank("");
       qc.invalidateQueries({ queryKey: ["uploads"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       qc.invalidateQueries({ queryKey: ["transactions"] });
@@ -181,6 +190,19 @@ function ImportPage() {
             />
             <span className="text-xs">Marcar tudo como <strong>Investimento</strong> (fica fora do gasto mensal)</span>
           </label>
+          <div className="flex items-center gap-2">
+            <Landmark className="size-4 text-muted-foreground" />
+            <input
+              list="bank-suggestions"
+              value={bank}
+              onChange={(e) => setBank(e.target.value)}
+              placeholder="Banco (ex: Nubank, Itaú)"
+              className="bg-transparent border border-border rounded-lg px-2 py-1 text-xs w-48"
+            />
+            <datalist id="bank-suggestions">
+              {banks.map((b) => <option key={b} value={b} />)}
+            </datalist>
+          </div>
         </div>
 
 
@@ -323,14 +345,36 @@ function ImportPage() {
         <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">Histórico de uploads</h2>
         <div className="space-y-2">
           {(uploads ?? []).map((u) => (
-            <div key={u.id} className="surface-card p-4 flex items-center gap-4">
+            <div key={u.id} className="surface-card p-4 flex items-center gap-4 flex-wrap">
               <FileText className="size-5 text-muted-foreground shrink-0" />
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-[200px]">
                 <div className="font-medium truncate">{u.file_name}</div>
                 <div className="text-xs text-muted-foreground">
                   {new Date(u.upload_date).toLocaleString("pt-BR")} · {u.file_type.toUpperCase()} · {u.records_found} registros
                   {u.observations && ` · ${u.observations}`}
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Landmark className="size-4 text-muted-foreground" />
+                <input
+                  list="bank-suggestions"
+                  defaultValue={(u as { bank?: string | null }).bank ?? ""}
+                  onBlur={async (e) => {
+                    const next = e.target.value.trim() || null;
+                    const current = (u as { bank?: string | null }).bank ?? null;
+                    if (next === current) return;
+                    try {
+                      await doUpdateUpload({ data: { id: u.id, bank: next } });
+                      toast.success("Banco atualizado");
+                      qc.invalidateQueries({ queryKey: ["uploads"] });
+                      qc.invalidateQueries({ queryKey: ["transactions"] });
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Erro ao atualizar");
+                    }
+                  }}
+                  placeholder="Banco"
+                  className="bg-transparent border border-border rounded px-2 py-1 text-xs w-40"
+                />
               </div>
               {u.processed ? (
                 u.records_found > 0 ? (
@@ -341,6 +385,24 @@ function ImportPage() {
               ) : (
                 <Loader2 className="size-5 text-muted-foreground animate-spin shrink-0" />
               )}
+              <button
+                onClick={async () => {
+                  if (!confirm(`Apagar "${u.file_name}" e suas ${u.records_found} transações?`)) return;
+                  try {
+                    const res = await doDeleteUpload({ data: { id: u.id, deleteTransactions: true } });
+                    toast.success(`Arquivo removido (${res.deletedTransactions} transações apagadas)`);
+                    qc.invalidateQueries({ queryKey: ["uploads"] });
+                    qc.invalidateQueries({ queryKey: ["transactions"] });
+                    qc.invalidateQueries({ queryKey: ["dashboard"] });
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Erro ao apagar");
+                  }
+                }}
+                className="text-muted-foreground hover:text-destructive p-2 rounded-lg hover:bg-destructive/10"
+                title="Apagar arquivo e transações"
+              >
+                <Trash2 className="size-4" />
+              </button>
             </div>
           ))}
           {(!uploads || uploads.length === 0) && (
