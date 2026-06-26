@@ -98,11 +98,13 @@ function ImportPage() {
           fileType: preview.fileType,
           source,
           isInvestment,
+          bank: bank.trim() || null,
           txns: toSave.map(({ _id, _keep, ...t }) => t),
         },
       });
       toast.success(`${res.imported} transações salvas`);
       setPreview(null);
+      setBank("");
       qc.invalidateQueries({ queryKey: ["uploads"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       qc.invalidateQueries({ queryKey: ["transactions"] });
