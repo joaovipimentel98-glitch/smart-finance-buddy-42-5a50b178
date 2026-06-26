@@ -190,6 +190,19 @@ function ImportPage() {
             />
             <span className="text-xs">Marcar tudo como <strong>Investimento</strong> (fica fora do gasto mensal)</span>
           </label>
+          <div className="flex items-center gap-2">
+            <Landmark className="size-4 text-muted-foreground" />
+            <input
+              list="bank-suggestions"
+              value={bank}
+              onChange={(e) => setBank(e.target.value)}
+              placeholder="Banco (ex: Nubank, Itaú)"
+              className="bg-transparent border border-border rounded-lg px-2 py-1 text-xs w-48"
+            />
+            <datalist id="bank-suggestions">
+              {banks.map((b) => <option key={b} value={b} />)}
+            </datalist>
+          </div>
         </div>
 
 
