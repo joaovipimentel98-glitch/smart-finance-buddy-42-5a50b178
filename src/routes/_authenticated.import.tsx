@@ -345,14 +345,36 @@ function ImportPage() {
         <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">Histórico de uploads</h2>
         <div className="space-y-2">
           {(uploads ?? []).map((u) => (
-            <div key={u.id} className="surface-card p-4 flex items-center gap-4">
+            <div key={u.id} className="surface-card p-4 flex items-center gap-4 flex-wrap">
               <FileText className="size-5 text-muted-foreground shrink-0" />
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-[200px]">
                 <div className="font-medium truncate">{u.file_name}</div>
                 <div className="text-xs text-muted-foreground">
                   {new Date(u.upload_date).toLocaleString("pt-BR")} · {u.file_type.toUpperCase()} · {u.records_found} registros
                   {u.observations && ` · ${u.observations}`}
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Landmark className="size-4 text-muted-foreground" />
+                <input
+                  list="bank-suggestions"
+                  defaultValue={(u as { bank?: string | null }).bank ?? ""}
+                  onBlur={async (e) => {
+                    const next = e.target.value.trim() || null;
+                    const current = (u as { bank?: string | null }).bank ?? null;
+                    if (next === current) return;
+                    try {
+                      await doUpdateUpload({ data: { id: u.id, bank: next } });
+                      toast.success("Banco atualizado");
+                      qc.invalidateQueries({ queryKey: ["uploads"] });
+                      qc.invalidateQueries({ queryKey: ["transactions"] });
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Erro ao atualizar");
+                    }
+                  }}
+                  placeholder="Banco"
+                  className="bg-transparent border border-border rounded px-2 py-1 text-xs w-40"
+                />
               </div>
               {u.processed ? (
                 u.records_found > 0 ? (
@@ -363,6 +385,24 @@ function ImportPage() {
               ) : (
                 <Loader2 className="size-5 text-muted-foreground animate-spin shrink-0" />
               )}
+              <button
+                onClick={async () => {
+                  if (!confirm(`Apagar "${u.file_name}" e suas ${u.records_found} transações?`)) return;
+                  try {
+                    const res = await doDeleteUpload({ data: { id: u.id, deleteTransactions: true } });
+                    toast.success(`Arquivo removido (${res.deletedTransactions} transações apagadas)`);
+                    qc.invalidateQueries({ queryKey: ["uploads"] });
+                    qc.invalidateQueries({ queryKey: ["transactions"] });
+                    qc.invalidateQueries({ queryKey: ["dashboard"] });
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Erro ao apagar");
+                  }
+                }}
+                className="text-muted-foreground hover:text-destructive p-2 rounded-lg hover:bg-destructive/10"
+                title="Apagar arquivo e transações"
+              >
+                <Trash2 className="size-4" />
+              </button>
             </div>
           ))}
           {(!uploads || uploads.length === 0) && (
