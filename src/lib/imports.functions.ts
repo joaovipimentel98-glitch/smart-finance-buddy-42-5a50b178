@@ -317,7 +317,7 @@ export const updateUpload = createServerFn({ method: "POST" })
     const { data: file, error: fErr } = await supabase
       .from("uploaded_files").select("import_batch").eq("id", data.id).eq("user_id", userId).single();
     if (fErr || !file) throw new Error("Arquivo não encontrado");
-    const patch: Record<string, unknown> = {};
+    const patch: { bank?: string | null } = {};
     if (data.bank !== undefined) patch.bank = data.bank;
     const { error } = await supabase.from("uploaded_files").update(patch).eq("id", data.id).eq("user_id", userId);
     if (error) throw new Error(error.message);
