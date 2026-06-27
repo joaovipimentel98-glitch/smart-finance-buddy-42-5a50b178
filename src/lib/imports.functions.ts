@@ -211,18 +211,21 @@ export const previewImport = createServerFn({ method: "POST" })
             }
           });
         } catch (e) {
-          console.warn(`[import:${reqId}] AI categorize falhou:`, e);
+          const { redactSecrets } = await import("./ai-gateway.server");
+          console.warn(`[import:${reqId}] AI categorize falhou:`, redactSecrets(e instanceof Error ? e.message : String(e)));
         }
       }
 
       logStep(reqId, "preview-done", { count: enriched.length, totalMs: Date.now() - t0 });
       return { txns: enriched, reqId, fileName: data.fileName, fileType: data.fileType };
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error(`[import:${reqId}] PREVIEW FAILED at step="${step}"`, e);
+      const { redactSecrets } = await import("./ai-gateway.server");
+      const msg = redactSecrets(e instanceof Error ? e.message : String(e));
+      console.error(`[import:${reqId}] PREVIEW FAILED at step="${step}"`, msg);
       throw new Error(`[${step}] ${msg}`);
     }
   });
+
 
 // ============ COMMIT: insert user-confirmed transactions ============
 
