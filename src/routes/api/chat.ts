@@ -25,8 +25,22 @@ export const Route = createFileRoute("/api/chat")({
         if (userErr || !userData.user) return new Response("Unauthorized", { status: 401 });
         const userId = userData.user.id;
 
-        const body = (await request.json()) as { messages?: UIMessage[] };
-        const messages = body.messages ?? [];
+        const BodySchema = z.object({
+          messages: z.array(z.object({
+            id: z.string().optional(),
+            role: z.string().max(32),
+            parts: z.array(z.any()).max(50).optional(),
+          }).passthrough()).max(50).default([]),
+        });
+        let parsedBody: z.infer<typeof BodySchema>;
+        try {
+          const raw = await request.json();
+          parsedBody = BodySchema.parse(raw);
+        } catch {
+          return new Response("Payload inválido ou excede limites (máx 50 mensagens).", { status: 400 });
+        }
+        const messages = parsedBody.messages as unknown as UIMessage[];
+
 
         const { getChatModels, redactSecrets } = await import("@/lib/ai-gateway.server");
         const candidates = getChatModels();
