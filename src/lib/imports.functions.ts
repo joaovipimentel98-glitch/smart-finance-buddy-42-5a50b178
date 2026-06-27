@@ -244,7 +244,7 @@ const CommitInput = z.object({
     category: z.string().min(1),
     subcategory: z.string().optional(),
     confidence: z.number().optional(),
-  })).min(1),
+  })).min(1).max(5000),
 });
 
 export const commitImport = createServerFn({ method: "POST" })
