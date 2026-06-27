@@ -25,6 +25,7 @@ export const Route = createFileRoute("/api/chat")({
         if (userErr || !userData.user) return new Response("Unauthorized", { status: 401 });
         const userId = userData.user.id;
 
+        const MAX_BODY_BYTES = 256_000; // ~256 KB total chat payload
         const BodySchema = z.object({
           messages: z.array(z.object({
             id: z.string().optional(),
@@ -34,12 +35,16 @@ export const Route = createFileRoute("/api/chat")({
         });
         let parsedBody: z.infer<typeof BodySchema>;
         try {
-          const raw = await request.json();
-          parsedBody = BodySchema.parse(raw);
+          const rawText = await request.text();
+          if (rawText.length > MAX_BODY_BYTES) {
+            return new Response("Payload excede o tamanho máximo permitido.", { status: 413 });
+          }
+          parsedBody = BodySchema.parse(JSON.parse(rawText));
         } catch {
           return new Response("Payload inválido ou excede limites (máx 50 mensagens).", { status: 400 });
         }
         const messages = parsedBody.messages as unknown as UIMessage[];
+
 
 
         const { getChatModels, redactSecrets } = await import("@/lib/ai-gateway.server");
