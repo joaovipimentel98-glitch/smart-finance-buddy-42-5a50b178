@@ -2,11 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+// ~10 MB of base64 (~7.5 MB raw file) — prevents memory exhaustion on uploads.
+const MAX_BASE64_LEN = 10_000_000;
 const ImportInput = z.object({
-  fileName: z.string().min(1),
-  fileType: z.string().min(1), // mime
-  base64: z.string().min(1),
+  fileName: z.string().min(1).max(255),
+  fileType: z.string().min(1).max(120), // mime
+  base64: z.string().min(1).max(MAX_BASE64_LEN),
 });
+
 
 const TxnSchema = z.object({
   date: z.string(),
@@ -208,18 +211,21 @@ export const previewImport = createServerFn({ method: "POST" })
             }
           });
         } catch (e) {
-          console.warn(`[import:${reqId}] AI categorize falhou:`, e);
+          const { redactSecrets } = await import("./ai-gateway.server");
+          console.warn(`[import:${reqId}] AI categorize falhou:`, redactSecrets(e instanceof Error ? e.message : String(e)));
         }
       }
 
       logStep(reqId, "preview-done", { count: enriched.length, totalMs: Date.now() - t0 });
       return { txns: enriched, reqId, fileName: data.fileName, fileType: data.fileType };
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error(`[import:${reqId}] PREVIEW FAILED at step="${step}"`, e);
+      const { redactSecrets } = await import("./ai-gateway.server");
+      const msg = redactSecrets(e instanceof Error ? e.message : String(e));
+      console.error(`[import:${reqId}] PREVIEW FAILED at step="${step}"`, msg);
       throw new Error(`[${step}] ${msg}`);
     }
   });
+
 
 // ============ COMMIT: insert user-confirmed transactions ============
 
@@ -238,7 +244,7 @@ const CommitInput = z.object({
     category: z.string().min(1),
     subcategory: z.string().optional(),
     confidence: z.number().optional(),
-  })).min(1),
+  })).min(1).max(5000),
 });
 
 export const commitImport = createServerFn({ method: "POST" })
