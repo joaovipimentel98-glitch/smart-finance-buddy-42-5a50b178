@@ -2,11 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+// ~10 MB of base64 (~7.5 MB raw file) — prevents memory exhaustion on uploads.
+const MAX_BASE64_LEN = 10_000_000;
 const ImportInput = z.object({
-  fileName: z.string().min(1),
-  fileType: z.string().min(1), // mime
-  base64: z.string().min(1),
+  fileName: z.string().min(1).max(255),
+  fileType: z.string().min(1).max(120), // mime
+  base64: z.string().min(1).max(MAX_BASE64_LEN),
 });
+
 
 const TxnSchema = z.object({
   date: z.string(),
