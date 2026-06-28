@@ -21,6 +21,7 @@ const SUGGESTIONS = [
 function ChatPage() {
   const [token, setToken] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,7 +37,10 @@ function ChatPage() {
     [token],
   );
 
-  const { messages, sendMessage, status } = useChat({ transport });
+  const { messages, sendMessage, status } = useChat({
+    transport,
+    onError: (error) => setErrorMessage(error.message || "Não foi possível conectar ao chat."),
+  });
   const busy = status === "submitted" || status === "streaming";
 
   useEffect(() => {
@@ -45,6 +49,7 @@ function ChatPage() {
 
   const send = (text: string) => {
     if (!text.trim() || busy || !token) return;
+    setErrorMessage(null);
     sendMessage({ text });
     setInput("");
   };
@@ -94,6 +99,11 @@ function ChatPage() {
           {busy && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" /> Analisando seus dados...
+            </div>
+          )}
+          {errorMessage && (
+            <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {errorMessage}
             </div>
           )}
         </div>
