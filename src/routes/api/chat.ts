@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, streamText, tool, type UIMessage } from "ai";
+import { convertToModelMessages, streamText, stepCountIs, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -125,9 +125,12 @@ export const Route = createFileRoute("/api/chat")({
             const result = streamText({
               model,
               system: "Você é um consultor financeiro pessoal em português brasileiro. Use as ferramentas para consultar os dados reais do usuário antes de responder. Valores em reais (R$). Seja direto e específico. Sempre responda em português.",
-              messages: await convertToModelMessages(messages),
+              messages: await convertToModelMessages(messages, {
+                tools,
+                ignoreIncompleteToolCalls: true,
+              }),
               tools,
-              stopWhen: ({ steps }) => steps.length >= 8,
+              stopWhen: stepCountIs(8),
               onError: (e) => console.error(`[chat] ${label} stream error:`, redactSecrets(e instanceof Error ? e.message : String(e))),
             });
             return result.toUIMessageStreamResponse({ originalMessages: messages });

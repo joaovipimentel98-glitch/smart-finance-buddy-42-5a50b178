@@ -3,7 +3,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
 
-export const CHAT_MODEL = "google/gemini-2.5-flash";
+export const CHAT_MODEL = "google/gemini-3-flash-preview";
 export const OPENAI_CHAT_MODEL = "gpt-4o-mini";
 
 function lovableProvider() {
