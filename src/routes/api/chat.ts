@@ -9,10 +9,19 @@ export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const requestId = request.headers.get("X-Request-Id")?.trim() || crypto.randomUUID();
+        const incomingRunId = request.headers.get("X-Lovable-AIG-Run-ID")?.trim() || undefined;
+
+        const errorHeaders = (): HeadersInit => ({
+          "Content-Type": "application/json",
+          "X-Request-Id": requestId,
+          "Access-Control-Expose-Headers": "X-Request-Id, X-Lovable-AIG-Run-ID, X-Lovable-AIG-Log-ID",
+        });
+        const errorJson = (status: number, message: string) =>
+          new Response(JSON.stringify({ error: message, requestId }), { status, headers: errorHeaders() });
+
         const authHeader = request.headers.get("authorization");
-        if (!authHeader?.startsWith("Bearer ")) {
-          return new Response("Unauthorized", { status: 401 });
-        }
+        if (!authHeader?.startsWith("Bearer ")) return errorJson(401, "Unauthorized");
         const token = authHeader.slice(7);
 
         const SUPABASE_URL = process.env.SUPABASE_URL!;
@@ -22,10 +31,10 @@ export const Route = createFileRoute("/api/chat")({
           auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
         });
         const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-        if (userErr || !userData.user) return new Response("Unauthorized", { status: 401 });
+        if (userErr || !userData.user) return errorJson(401, "Unauthorized");
         const userId = userData.user.id;
 
-        const MAX_BODY_BYTES = 256_000; // ~256 KB total chat payload
+        const MAX_BODY_BYTES = 256_000;
         const BodySchema = z.object({
           messages: z.array(z.object({
             id: z.string().optional(),
@@ -37,18 +46,16 @@ export const Route = createFileRoute("/api/chat")({
         try {
           const rawText = await request.text();
           if (rawText.length > MAX_BODY_BYTES) {
-            return new Response("Payload excede o tamanho máximo permitido.", { status: 413 });
+            return errorJson(413, "Payload excede o tamanho máximo permitido (256 KB).");
           }
           parsedBody = BodySchema.parse(JSON.parse(rawText));
         } catch {
-          return new Response("Payload inválido ou excede limites (máx 50 mensagens).", { status: 400 });
+          return errorJson(400, "Payload inválido ou excede limites (máx 50 mensagens).");
         }
         const messages = parsedBody.messages as unknown as UIMessage[];
 
-
-
-        const { getChatModels, redactSecrets } = await import("@/lib/ai-gateway.server");
-        const candidates = getChatModels();
+        const { getChatModels, redactSecrets, withCorrelationHeaders } = await import("@/lib/ai-gateway.server");
+        const candidates = getChatModels(incomingRunId);
 
         const tools = {
           getSpendingByCategory: tool({
@@ -118,9 +125,8 @@ export const Route = createFileRoute("/api/chat")({
           }),
         };
 
-        // Try providers in order; on synchronous setup error, fall back.
         let lastErr: unknown = null;
-        for (const { label, model } of candidates) {
+        for (const { label, model, gateway } of candidates) {
           try {
             const result = streamText({
               model,
@@ -131,16 +137,23 @@ export const Route = createFileRoute("/api/chat")({
               }),
               tools,
               stopWhen: stepCountIs(8),
-              onError: (e) => console.error(`[chat] ${label} stream error:`, redactSecrets(e instanceof Error ? e.message : String(e))),
+              onError: (e) => console.error(`[chat] ${label} req=${requestId} stream error:`, redactSecrets(e instanceof Error ? e.message : String(e))),
             });
-            return result.toUIMessageStreamResponse({ originalMessages: messages });
+            const streamRes = result.toUIMessageStreamResponse({ originalMessages: messages });
+            return await withCorrelationHeaders(streamRes, gateway, {
+              "X-Request-Id": requestId,
+              "X-Chat-Provider": label,
+            });
           } catch (e) {
             const safe = redactSecrets(e instanceof Error ? e.message : String(e));
-            console.error(`[chat] provider ${label} failed:`, safe);
+            console.error(`[chat] req=${requestId} provider ${label} failed:`, safe);
             lastErr = safe;
           }
         }
-        return new Response(redactSecrets(`Todos os provedores falharam: ${lastErr ?? ""}`), { status: 502 });
+        return new Response(
+          JSON.stringify({ error: `Todos os provedores falharam: ${lastErr ?? ""}`, requestId }),
+          { status: 502, headers: errorHeaders() },
+        );
       },
     },
   },
