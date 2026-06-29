@@ -1,50 +1,81 @@
+## Objetivo
 
-# Finance AI Dashboard — Plano de Construção
+Quando o chat falhar, ter na própria tela `/chat` um painel discreto mostrando:
+- Status do usuário (autenticado, token presente/expirando).
+- Tamanho da última requisição enviada (bytes/KB e nº de mensagens).
+- IDs de correlação para casar com os logs do AI Gateway: `request_id` (gerado pelo client), `X-Lovable-AIG-Run-ID` e `X-Lovable-AIG-Log-ID` retornados pelo gateway.
+- Status HTTP da última resposta + erro redigido (sem segredos).
 
-Projeto grande. Vou entregar em fases priorizando o núcleo funcional (importação + dashboard + IA) antes dos refinamentos. Tudo single-user, tema escuro, estilo Nubank/Notion.
+Tudo opt-in: um botão "Diagnóstico" no header do chat abre/fecha o painel; não polui a UI normal.
 
-## Stack confirmada
-- TanStack Start + React + TypeScript + Tailwind v4 (já no template)
-- **Lovable Cloud** (Supabase gerenciado) para banco e auth de 1 usuário
-- **Lovable AI Gateway** (`google/gemini-3-flash-preview`) — substitui OpenAI direto (mesma qualidade, sem precisar de chave do usuário)
-- Recharts para gráficos
-- Parsers no servidor: `papaparse` (CSV), `xlsx` (XLSX), `ofx-js` (OFX), `pdf-parse` (PDF). OCR de imagens via Gemini multimodal (mais simples e preciso que Tesseract no Worker).
+## Mudanças
 
-> Observação: troquei OpenAI por Lovable AI (sem custo de setup, sem chave para você gerenciar) e OCR por Gemini multimodal (Tesseract não roda bem no Worker). Se preferir OpenAI explícito eu troco depois.
+### 1. `src/routes/api/chat.ts` (server)
+- Ler `X-Request-Id` enviado pelo client (ou gerar um `crypto.randomUUID()` se ausente).
+- Passar `initialRunId` do header `X-Lovable-AIG-Run-ID` (se houver) ao criar o provider Lovable — usar o helper `createLovableAiGatewayProvider` do knowledge `ai-sdk-lovable-gateway` em vez do `createOpenAICompatible` cru atual, para capturar headers `X-Lovable-AIG-*` do upstream.
+- Encaminhar de volta na resposta (streaming e erro):
+  - `X-Request-Id` (eco do client)
+  - `X-Lovable-AIG-Run-ID` / `X-Lovable-AIG-Log-ID` via `withLovableAiGatewayRunIdHeader` + `getLovableAiGatewayResponseHeaders` (expõe via `Access-Control-Expose-Headers`).
+- Em erros 4xx/5xx, incluir um JSON body `{ error, requestId, provider }` (já redigido por `redactSecrets`) em vez do texto cru.
 
-## Fase 1 — Fundação (esta entrega)
-1. Habilitar Lovable Cloud.
-2. Auth simples (email/senha, 1 conta).
-3. Schema completo: `transactions`, `uploaded_files`, `category_rules`, `financial_insights`, `goals`, `subscriptions`, `categories` (+ seed das 25 categorias padrão), com RLS por `user_id`.
-4. Design system dark (Nubank-like: roxo/violeta acentos, neutros profundos, cards arredondados, tipografia limpa).
-5. Layout app: sidebar + topbar, rotas protegidas sob `_authenticated`.
-6. Dashboard principal com cards superiores, gráfico de evolução (linha), pizza por categoria, fluxo de caixa, maiores gastos. Lê dados reais.
-7. Central de Importação: upload CSV/OFX/XLSX/PDF/JPG/PNG → server function que parseia, categoriza (regras + heurística), salva em batch, atualiza `uploaded_files`.
-8. Lista/edição de transações com mudança manual de categoria que cria automaticamente uma `category_rule`.
-9. Consultor Financeiro (insights) — geração automática via IA a partir das transações.
-10. Chat Financeiro — IA com acesso (via tools) a queries agregadas no banco.
+### 2. `src/lib/ai-gateway.server.ts`
+- Substituir o `lovableProvider()` atual pelo helper canônico `createLovableAiGatewayProvider(key, initialRunId?)` (mantém header `X-Lovable-AIG-SDK`, captura `X-Lovable-AIG-Run-ID` por request).
+- `getChatModels` passa a aceitar `initialRunId` opcional e devolve também o objeto `gateway` (com `waitForRunId`) para o handler usar no wrap da resposta.
 
-## Fase 2 (próxima iteração, se aprovar Fase 1)
-- Detector de assinaturas (job que roda no upload + manual).
-- Vazamentos financeiros.
-- Metas com progresso.
-- Score financeiro 0–100.
-- Previsão financeira (30/90/180d).
-- Alertas inteligentes.
-- Relatório mensal exportável (PDF/Excel).
+### 3. `src/routes/_authenticated.chat.tsx` (client)
+- Novo estado `diagnostics`:
+  ```ts
+  {
+    userId, tokenPresent, tokenExpiresIn,
+    lastRequestId, lastRequestBytes, lastMessageCount,
+    lastResponseStatus, lastRunId, lastLogId,
+    lastErrorRedacted
+  }
+  ```
+- Trocar `DefaultChatTransport` por um pequeno transport custom (ou usar `fetch` middleware) que:
+  - Gera `requestId = crypto.randomUUID()` por envio e injeta no header `X-Request-Id`.
+  - Mede `JSON.stringify(body).length` antes do POST.
+  - Captura `response.status` e headers `X-Lovable-AIG-Run-ID` / `X-Lovable-AIG-Log-ID` / `X-Request-Id` do echo.
+  - Atualiza o `diagnostics` state.
+- Em `onError`, salva `lastErrorRedacted` (a mensagem já vem redigida do server).
+- Botão "Diagnóstico" (ícone `Bug` ou `Activity`) no header abre um painel colapsável `<details>` mostrando todos os campos + botão "Copiar" que copia um JSON para o usuário colar na conversa comigo.
 
-Faseamento é necessário: a spec equivale a ~3–4 sprints. Entregar tudo numa única resposta resultaria em código superficial e bugs. A Fase 1 já entrega um produto utilizável de ponta a ponta.
+### 4. Sem mudanças em outras telas
+Diagnóstico fica isolado em `/chat`. Não toca em insights, importação, etc.
 
 ## Detalhes técnicos
-- Server functions em `src/lib/*.functions.ts`, parsers/IA em `*.server.ts`.
-- Upload: arquivo vai como base64 para server fn → parser → normalização → insert em lote.
-- Categorização: 1) match em `category_rules` por regex no merchant/description, 2) fallback heurístico por palavras-chave, 3) IA classifica o restante em batch (1 chamada Gemini por upload).
-- Chat: `streamText` + tools (`getSpendingByCategory`, `getTopMerchants`, `getMonthlyTotals`, `searchTransactions`) — IA consulta o banco, não recebe dump.
-- Insights: server fn agendável (por enquanto on-demand) que roda análises SQL + Gemini para gerar texto e grava em `financial_insights`.
-- Tema dark: tokens oklch em `src/styles.css` (primary violeta vibrante, background quase preto, surfaces elevadas).
 
-## O que NÃO está na Fase 1
-Multi-conta, planos, compartilhamento (fora do escopo por design).
-Relatório PDF/Excel, score, metas, previsão, alertas, vazamentos, assinaturas — Fase 2.
+```text
+client send                server                  gateway
+-----------                ------                  -------
+X-Request-Id: r1   ─────►  log "[chat] r1 start"
+                            createLovableAiGatewayProvider(key)
+                            streamText(...)        ───► returns X-Lovable-AIG-Run-ID: g1
+                                                         X-Lovable-AIG-Log-ID:  l1
+withLovableAiGatewayRunIdHeader wraps response
+   ◄───── headers: X-Request-Id: r1, X-Lovable-AIG-Run-ID: g1, X-Lovable-AIG-Log-ID: l1
+```
 
-Aprovar para eu começar a implementar a Fase 1?
+Painel renderizado (exemplo):
+
+```text
+Status:    ✓ autenticado (token válido por 58min)
+User:      0c285920…a60b
+Última req: 3 mensagens · 2.4 KB · id=r1
+Resposta:  HTTP 200 · run=g1 · log=l1
+Erro:      —
+[Copiar diagnóstico]
+```
+
+## Verificação
+
+1. Build/typecheck do projeto.
+2. Abrir `/chat`, enviar 1 mensagem, abrir painel: ver `lastRunId` e `lastLogId` preenchidos, status 200.
+3. Forçar falha (ex.: enviar payload simulado >256KB) e confirmar que o painel mostra status 413 + `requestId`, sem vazar segredos.
+4. Rodar `bun test` (passa nos testes existentes de `redact-secrets` e `no-secret-leaks`).
+
+## Fora de escopo
+
+- Não muda o modelo, system prompt, tools ou storage de histórico.
+- Não adiciona persistência de threads.
+- Não altera UI dos outros caminhos do chat (sugestões, markdown render).
