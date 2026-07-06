@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://xtgctlieumhhzslgkpux.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "finance-ai-mcp",
+      "version": "0.1.0",
+      "title": "Finance AI"
+    },
+    "tools": [
+      {
+        "name": "list_transactions",
+        "title": "List transactions",
+        "description": "List the signed-in user's transactions, most recent first. Optionally filter by a text query (matches description) and by number of days back.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Optional text to match against transaction description (ILIKE)."
+            },
+            "days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3650,
+              "default": 90,
+              "description": "How many days back to look. Default 90."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "description": "Max rows to return. Default 50."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "spending_by_category",
+        "title": "Spending by category",
+        "description": "Return total spent per category over the last N days for the signed-in user (debit transactions only).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3650,
+              "default": 30,
+              "description": "How many days back to aggregate. Default 30."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "monthly_totals",
+        "title": "Monthly totals",
+        "description": "Return income, expense, and balance per month over the last N months for the signed-in user.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "months": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 36,
+              "default": 6,
+              "description": "How many months back to aggregate. Default 6."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_transaction",
+        "title": "Create transaction",
+        "description": "Insert a new transaction for the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "date": {
+              "type": "string",
+              "description": "ISO date YYYY-MM-DD."
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Description of the transaction."
+            },
+            "amount": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Positive amount in the account's currency."
+            },
+            "transaction_type": {
+              "type": "string",
+              "enum": [
+                "debit",
+                "credit"
+              ],
+              "description": "'debit' for expense, 'credit' for income."
+            },
+            "category": {
+              "type": "string",
+              "minLength": 1,
+              "default": "Outros",
+              "description": "Category name."
+            },
+            "merchant": {
+              "type": "string",
+              "description": "Optional merchant/establishment."
+            }
+          },
+          "required": [
+            "date",
+            "description",
+            "amount",
+            "transaction_type"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
