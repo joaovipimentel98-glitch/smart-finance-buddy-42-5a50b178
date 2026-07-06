@@ -73,7 +73,12 @@ function ChatPage() {
             Math.random().toString(36).slice(2);
           const headers = new Headers(init?.headers);
           headers.set("X-Request-Id", requestId);
-          if (token) headers.set("Authorization", `Bearer ${token}`);
+          // Always read the freshest access token — a value captured in
+          // component state goes stale after Supabase refreshes it (~1h)
+          // and the server then rejects the request with 401 Unauthorized.
+          const { data: sessionData } = await supabase.auth.getSession();
+          const freshToken = sessionData.session?.access_token;
+          if (freshToken) headers.set("Authorization", `Bearer ${freshToken}`);
 
           let bytes: number | undefined;
           let messageCount: number | undefined;
@@ -88,6 +93,7 @@ function ChatPage() {
 
           setDiag((d) => ({
             ...d,
+            tokenPresent: !!freshToken,
             lastRequestId: requestId,
             lastRequestBytes: bytes,
             lastMessageCount: messageCount,
@@ -111,7 +117,7 @@ function ChatPage() {
           return res;
         },
       }),
-    [token],
+    [],
   );
 
   const { messages, sendMessage, status } = useChat({
