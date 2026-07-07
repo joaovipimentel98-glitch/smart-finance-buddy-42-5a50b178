@@ -76,9 +76,35 @@ function ChatPage() {
           // Always read the freshest access token — a value captured in
           // component state goes stale after Supabase refreshes it (~1h)
           // and the server then rejects the request with 401 Unauthorized.
-          const { data: sessionData } = await supabase.auth.getSession();
-          const freshToken = sessionData.session?.access_token;
-          if (freshToken) headers.set("Authorization", `Bearer ${freshToken}`);
+          let { data: sessionData } = await supabase.auth.getSession();
+          let freshToken = sessionData.session?.access_token;
+          // If missing/near-expired, force a refresh before giving up.
+          const expiresAtSec = sessionData.session?.expires_at ?? 0;
+          const nowSec = Math.floor(Date.now() / 1000);
+          if (!freshToken || expiresAtSec - nowSec < 30) {
+            const { data: refreshed } = await supabase.auth.refreshSession();
+            if (refreshed.session?.access_token) {
+              freshToken = refreshed.session.access_token;
+              sessionData = { session: refreshed.session } as typeof sessionData;
+            }
+          }
+          if (!freshToken) {
+            setDiag((d) => ({
+              ...d,
+              tokenPresent: false,
+              lastRequestId: requestId,
+              lastErrorRedacted: "Sessão expirada. Redirecionando para login…",
+              lastAt: new Date().toISOString(),
+            }));
+            // Bounce to /auth preserving return path.
+            const next = encodeURIComponent(window.location.pathname);
+            window.location.replace(`/auth?next=${next}`);
+            return new Response(
+              JSON.stringify({ error: "Sessão expirada", requestId }),
+              { status: 401, headers: { "Content-Type": "application/json", "X-Request-Id": requestId } },
+            );
+          }
+          headers.set("Authorization", `Bearer ${freshToken}`);
 
           let bytes: number | undefined;
           let messageCount: number | undefined;
@@ -93,7 +119,7 @@ function ChatPage() {
 
           setDiag((d) => ({
             ...d,
-            tokenPresent: !!freshToken,
+            tokenPresent: true,
             lastRequestId: requestId,
             lastRequestBytes: bytes,
             lastMessageCount: messageCount,
@@ -114,11 +140,17 @@ function ChatPage() {
             lastProvider: res.headers.get("X-Chat-Provider") ?? undefined,
             lastRequestId: res.headers.get("X-Request-Id") ?? d.lastRequestId,
           }));
+          // On 401, sessão inválida no servidor — force refresh+redirect.
+          if (res.status === 401) {
+            const next = encodeURIComponent(window.location.pathname);
+            setTimeout(() => window.location.replace(`/auth?next=${next}`), 800);
+          }
           return res;
         },
       }),
     [],
   );
+
 
   const { messages, sendMessage, status } = useChat({
     transport,
