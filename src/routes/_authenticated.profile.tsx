@@ -3,13 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { getProfile, updateProfile, getAvatarSignedUrl } from "@/lib/profile.functions";
+import { getWhatsAppStatus, createPairingCode, unlinkWhatsApp } from "@/lib/whatsapp.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Check, Loader2, Palette, Plus, X, Upload, User } from "lucide-react";
+import { Check, Loader2, Palette, Plus, X, Upload, User, MessageCircle, Copy } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   component: ProfilePage,
