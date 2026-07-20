@@ -1,81 +1,68 @@
-## Objetivo
 
-Quando o chat falhar, ter na própria tela `/chat` um painel discreto mostrando:
-- Status do usuário (autenticado, token presente/expirando).
-- Tamanho da última requisição enviada (bytes/KB e nº de mensagens).
-- IDs de correlação para casar com os logs do AI Gateway: `request_id` (gerado pelo client), `X-Lovable-AIG-Run-ID` e `X-Lovable-AIG-Log-ID` retornados pelo gateway.
-- Status HTTP da última resposta + erro redigido (sem segredos).
+# Bot WhatsApp para lançar gastos
 
-Tudo opt-in: um botão "Diagnóstico" no header do chat abre/fecha o painel; não polui a UI normal.
+Fluxo: usuário manda "gastei 35 no ifood ontem" → Meta entrega no webhook do app → IA extrai os campos → transação é criada na conta do usuário → bot responde confirmando.
 
-## Mudanças
+## O que você precisa fazer no Meta (fora do app)
 
-### 1. `src/routes/api/chat.ts` (server)
-- Ler `X-Request-Id` enviado pelo client (ou gerar um `crypto.randomUUID()` se ausente).
-- Passar `initialRunId` do header `X-Lovable-AIG-Run-ID` (se houver) ao criar o provider Lovable — usar o helper `createLovableAiGatewayProvider` do knowledge `ai-sdk-lovable-gateway` em vez do `createOpenAICompatible` cru atual, para capturar headers `X-Lovable-AIG-*` do upstream.
-- Encaminhar de volta na resposta (streaming e erro):
-  - `X-Request-Id` (eco do client)
-  - `X-Lovable-AIG-Run-ID` / `X-Lovable-AIG-Log-ID` via `withLovableAiGatewayRunIdHeader` + `getLovableAiGatewayResponseHeaders` (expõe via `Access-Control-Expose-Headers`).
-- Em erros 4xx/5xx, incluir um JSON body `{ error, requestId, provider }` (já redigido por `redactSecrets`) em vez do texto cru.
+1. Criar um app em **developers.facebook.com** → produto **WhatsApp**.
+2. Anotar: `Phone Number ID`, `WhatsApp Business Account ID`, gerar um **Permanent Access Token** e escolher um **Verify Token** (string aleatória sua).
+3. Cadastrar o webhook apontando pra `https://smart-finance-buddy-42.lovable.app/api/public/whatsapp/webhook` e assinar o campo `messages`.
 
-### 2. `src/lib/ai-gateway.server.ts`
-- Substituir o `lovableProvider()` atual pelo helper canônico `createLovableAiGatewayProvider(key, initialRunId?)` (mantém header `X-Lovable-AIG-SDK`, captura `X-Lovable-AIG-Run-ID` por request).
-- `getChatModels` passa a aceitar `initialRunId` opcional e devolve também o objeto `gateway` (com `waitForRunId`) para o handler usar no wrap da resposta.
+Depois disso eu peço esses valores via `add_secret` (`META_WA_TOKEN`, `META_WA_PHONE_ID`, `META_WA_VERIFY_TOKEN`).
 
-### 3. `src/routes/_authenticated.chat.tsx` (client)
-- Novo estado `diagnostics`:
-  ```ts
-  {
-    userId, tokenPresent, tokenExpiresIn,
-    lastRequestId, lastRequestBytes, lastMessageCount,
-    lastResponseStatus, lastRunId, lastLogId,
-    lastErrorRedacted
-  }
-  ```
-- Trocar `DefaultChatTransport` por um pequeno transport custom (ou usar `fetch` middleware) que:
-  - Gera `requestId = crypto.randomUUID()` por envio e injeta no header `X-Request-Id`.
-  - Mede `JSON.stringify(body).length` antes do POST.
-  - Captura `response.status` e headers `X-Lovable-AIG-Run-ID` / `X-Lovable-AIG-Log-ID` / `X-Request-Id` do echo.
-  - Atualiza o `diagnostics` state.
-- Em `onError`, salva `lastErrorRedacted` (a mensagem já vem redigida do server).
-- Botão "Diagnóstico" (ícone `Bug` ou `Activity`) no header abre um painel colapsável `<details>` mostrando todos os campos + botão "Copiar" que copia um JSON para o usuário colar na conversa comigo.
+## O que eu construo no app
 
-### 4. Sem mudanças em outras telas
-Diagnóstico fica isolado em `/chat`. Não toca em insights, importação, etc.
+### 1. Banco (migration)
+- Coluna `profiles.whatsapp_e164` (text, unique) — número normalizado (+55...).
+- Coluna `profiles.whatsapp_verified_at` (timestamptz).
+- Tabela `whatsapp_pairing_codes` (user_id, code, expires_at) — pra confirmar posse do número.
+- Tabela `whatsapp_messages_log` (wa_message_id unique, user_id, direction, body, created_at) — dedupe + auditoria.
+- RLS + GRANTs padrão.
 
-## Detalhes técnicos
+### 2. UI de perfil (`/_authenticated/profile`)
+- Campo "Número do WhatsApp" + botão **Vincular**.
+- Ao clicar: gera código de 6 dígitos, mostra na tela e instrui o usuário a mandar `#vincular 123456` pro bot. Quando o webhook receber esse comando vindo desse número, grava `whatsapp_e164` + `whatsapp_verified_at`.
+- Estado "Vinculado ✓" + botão desvincular.
 
-```text
-client send                server                  gateway
------------                ------                  -------
-X-Request-Id: r1   ─────►  log "[chat] r1 start"
-                            createLovableAiGatewayProvider(key)
-                            streamText(...)        ───► returns X-Lovable-AIG-Run-ID: g1
-                                                         X-Lovable-AIG-Log-ID:  l1
-withLovableAiGatewayRunIdHeader wraps response
-   ◄───── headers: X-Request-Id: r1, X-Lovable-AIG-Run-ID: g1, X-Lovable-AIG-Log-ID: l1
-```
+### 3. Webhook público (`src/routes/api/public/whatsapp/webhook.ts`)
+- `GET`: responde o handshake do Meta (`hub.challenge`) validando `hub.verify_token`.
+- `POST`:
+  - Valida assinatura `X-Hub-Signature-256` com HMAC-SHA256 do body cru usando o App Secret.
+  - Faz parse do payload, ignora status/reactions, processa só `messages[].type === "text"`.
+  - Dedupe por `wa_message_id`.
+  - Resolve o `user_id` pelo `from` (E.164). Se não achar: responde "número não vinculado, cadastre em [link]".
+  - Se corpo começa com `#vincular <código>`: valida o código não expirado e conclui pareamento.
+  - Caso contrário: chama a extração via IA (abaixo) e insere a transação com `supabaseAdmin`.
+  - Envia resposta pelo Graph API: `POST /v22.0/{phone_id}/messages` confirmando (ex.: "✓ R$ 35,00 · Delivery · iFood · 12/07"). Em erro de parsing, pede reformulação.
 
-Painel renderizado (exemplo):
+### 4. Extração com IA (`src/lib/whatsapp/extract.server.ts`)
+- Usa Lovable AI Gateway (`LOVABLE_API_KEY`, modelo `google/gemini-3.5-flash`) com AI SDK.
+- Recebe: texto do usuário + lista de categorias existentes do usuário + data atual (fuso America/Sao_Paulo).
+- Retorna JSON: `{ amount, transaction_type, description, category, merchant?, date }`. Sem `.min/.max` no schema; validação em código.
+- Se `amount` ausente ou <= 0, retorna erro pro webhook responder pedindo reformulação.
 
-```text
-Status:    ✓ autenticado (token válido por 58min)
-User:      0c285920…a60b
-Última req: 3 mensagens · 2.4 KB · id=r1
-Resposta:  HTTP 200 · run=g1 · log=l1
-Erro:      —
-[Copiar diagnóstico]
-```
+### 5. Segurança
+- `App Secret` do Meta em `META_WA_APP_SECRET` (assinatura do webhook).
+- Verify token comparado com `timingSafeEqual`.
+- Rate limit simples por número (contagem em `whatsapp_messages_log` últimos 60s).
+- Nunca logar tokens; erros do Graph vão pra `console.error` no server function log.
 
-## Verificação
+## Arquivos criados/editados
+- `supabase/migrations/*_whatsapp.sql` (nova)
+- `src/routes/api/public/whatsapp/webhook.ts` (nova)
+- `src/lib/whatsapp/extract.server.ts` (nova)
+- `src/lib/whatsapp/send.server.ts` (nova — wrapper do Graph API)
+- `src/lib/whatsapp/pairing.functions.ts` (nova — gerar/consultar código)
+- `src/routes/_authenticated.profile.tsx` (editar — seção WhatsApp)
 
-1. Build/typecheck do projeto.
-2. Abrir `/chat`, enviar 1 mensagem, abrir painel: ver `lastRunId` e `lastLogId` preenchidos, status 200.
-3. Forçar falha (ex.: enviar payload simulado >256KB) e confirmar que o painel mostra status 413 + `requestId`, sem vazar segredos.
-4. Rodar `bun test` (passa nos testes existentes de `redact-secrets` e `no-secret-leaks`).
+## Secrets que vou pedir depois de você criar o app no Meta
+- `META_WA_TOKEN` (Permanent Access Token)
+- `META_WA_PHONE_ID`
+- `META_WA_VERIFY_TOKEN`
+- `META_WA_APP_SECRET`
 
-## Fora de escopo
-
-- Não muda o modelo, system prompt, tools ou storage de histórico.
-- Não adiciona persistência de threads.
-- Não altera UI dos outros caminhos do chat (sugestões, markdown render).
+## Fora do escopo desta iteração
+- Envio de áudio / imagem de comprovante (dá pra adicionar depois com Whisper + Vision).
+- Templates aprovados pra iniciar conversa proativamente (só respondemos dentro da janela de 24h).
+- Múltiplos números por usuário.
