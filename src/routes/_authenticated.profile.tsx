@@ -406,6 +406,8 @@ function ProfilePage() {
         </div>
       </section>
 
+      <WhatsAppSection />
+
       <div className="flex justify-end gap-2 pb-6">
         <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
           {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
@@ -413,5 +415,102 @@ function ProfilePage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+function WhatsAppSection() {
+  const qc = useQueryClient();
+  const fetchStatus = useServerFn(getWhatsAppStatus);
+  const genCode = useServerFn(createPairingCode);
+  const unlink = useServerFn(unlinkWhatsApp);
+
+  const { data: status, isLoading } = useQuery({
+    queryKey: ["whatsapp-status"],
+    queryFn: () => fetchStatus(),
+    refetchInterval: (q) => (q.state.data?.linked_e164 ? false : 10000),
+  });
+
+  const generate = useMutation({
+    mutationFn: () => genCode(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["whatsapp-status"] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const disconnect = useMutation({
+    mutationFn: () => unlink(),
+    onSuccess: () => {
+      toast.success("WhatsApp desvinculado");
+      qc.invalidateQueries({ queryKey: ["whatsapp-status"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const botNumber = import.meta.env.VITE_WHATSAPP_BOT_NUMBER as string | undefined;
+
+  return (
+    <section className="surface-card p-5 space-y-4">
+      <div className="flex items-start gap-3">
+        <div className="size-10 rounded-xl bg-emerald-500/15 text-emerald-500 grid place-items-center border border-emerald-500/20">
+          <MessageCircle className="size-5" />
+        </div>
+        <div>
+          <h2 className="font-semibold">Robô do WhatsApp</h2>
+          <p className="text-xs text-muted-foreground">
+            Envie mensagens como "gastei 32 no ifood" e a IA registra automaticamente.
+          </p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="text-sm text-muted-foreground flex items-center gap-2">
+          <Loader2 className="size-4 animate-spin" /> Carregando…
+        </div>
+      ) : status?.linked_e164 ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm">
+            <Check className="size-4 text-emerald-500" />
+            Vinculado: <span className="font-mono">{status.linked_e164}</span>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => disconnect.mutate()} disabled={disconnect.isPending}>
+            {disconnect.isPending && <Loader2 className="size-4 animate-spin" />} Desvincular
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <ol className="text-sm text-muted-foreground list-decimal pl-5 space-y-1">
+            <li>Gere um código de 6 dígitos abaixo.</li>
+            <li>
+              Envie <b>apenas o código</b> por WhatsApp para
+              {botNumber ? <> <span className="font-mono">{botNumber}</span></> : " o número do robô"}.
+            </li>
+            <li>Pronto — depois é só mandar seus gastos.</li>
+          </ol>
+
+          {status?.pending_code ? (
+            <div className="rounded-xl border border-primary/40 bg-primary/10 p-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Seu código (expira em 15min):</p>
+                <p className="text-2xl font-mono tracking-widest">{status.pending_code}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(status.pending_code!);
+                  toast.success("Copiado");
+                }}
+              >
+                <Copy className="size-4" />
+              </Button>
+            </div>
+          ) : null}
+
+          <Button variant="outline" size="sm" onClick={() => generate.mutate()} disabled={generate.isPending}>
+            {generate.isPending && <Loader2 className="size-4 animate-spin" />}
+            {status?.pending_code ? "Gerar novo código" : "Gerar código de pareamento"}
+          </Button>
+        </div>
+      )}
+    </section>
   );
 }
