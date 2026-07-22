@@ -1,17 +1,47 @@
-# Reabrir formulários de segredos do WhatsApp
+# Remover o robô do WhatsApp
 
 ## Objetivo
-Permitir que o usuário insira ou atualize os 4 valores necessários para conectar o robô do WhatsApp ao Meta.
+Desfazer toda a funcionalidade de WhatsApp adicionada anteriormente: webhook público, tabelas de pareamento/log, seção no perfil e segredos do Meta.
 
-## Segredos a solicitar
-1. `WHATSAPP_ACCESS_TOKEN` — token de acesso permanente do app no Meta
-2. `WHATSAPP_PHONE_NUMBER_ID` — ID do número de telefone comercial
-3. `WHATSAPP_VERIFY_TOKEN` — string secreta usada na verificação do webhook
-4. `WHATSAPP_APP_SECRET` — App Secret do app no Meta, usado para validar assinatura dos eventos
+## Atenção
+- As tabelas `whatsapp_pairing_codes` e `whatsapp_messages_log` serão excluídas. Códigos pendentes e histórico de mensagens serão perdidos.
+- As colunas `whatsapp_e164` e `whatsapp_verified_at` serão removidas da tabela `profiles`.
 
-## Como usar depois
-Após salvar, o webhook `/api/public/whatsapp/webhook` estará pronto para ser cadastrado no painel do Meta com a URL e o verify token informados.
+## Passos
 
-## Fora do escopo
-- Nenhuma alteração de código
-- Nenhuma mudança no banco de dados
+### 1. Banco de dados
+Criar migration para dropar tudo relacionado ao WhatsApp:
+- Remover colunas `whatsapp_e164` e `whatsapp_verified_at` de `public.profiles`.
+- Dropar tabela `public.whatsapp_pairing_codes`.
+- Dropar tabela `public.whatsapp_messages_log`.
+
+### 2. Backend
+Excluir os arquivos:
+- `src/lib/whatsapp.functions.ts`
+- `src/lib/whatsapp/send.server.ts`
+- `src/lib/whatsapp/extract.server.ts`
+- `src/routes/api/public/whatsapp/webhook.ts`
+- Remover diretório vazio `src/lib/whatsapp/`
+
+### 3. Frontend
+Editar `src/routes/_authenticated.profile.tsx`:
+- Remover import de `getWhatsAppStatus`, `createPairingCode`, `unlinkWhatsApp`.
+- Remover componente `WhatsAppSection` inteiro.
+- Remover uso `<WhatsAppSection />` no JSX.
+- Limpar ícones `MessageCircle` e `Copy` do import do Lucide se não forem usados em outro lugar da página.
+
+### 4. Segredos
+Apagar os 4 segredos do WhatsApp salvos no projeto:
+- `WHATSAPP_ACCESS_TOKEN`
+- `WHATSAPP_PHONE_NUMBER_ID`
+- `WHATSAPP_VERIFY_TOKEN`
+- `WHATSAPP_APP_SECRET`
+
+### 5. Regeneração de rotas
+Após excluir `src/routes/api/public/whatsapp/webhook.ts`, o `src/routeTree.gen.ts` será regenerado automaticamente na próxima inicialização do dev server/build.
+
+## Verificação
+- Build sem erros.
+- Página `/profile` carrega sem a seção "Robô do WhatsApp".
+- Endpoint `/api/public/whatsapp/webhook` não existe mais (404).
+- Segredos não aparecem mais na listagem do projeto.
