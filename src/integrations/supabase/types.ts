@@ -150,8 +150,6 @@ export type Database = {
           monthly_budget: number | null
           notify_spending: boolean
           updated_at: string
-          whatsapp_e164: string | null
-          whatsapp_verified_at: string | null
         }
         Insert: {
           ai_provider?: string
@@ -165,8 +163,6 @@ export type Database = {
           monthly_budget?: number | null
           notify_spending?: boolean
           updated_at?: string
-          whatsapp_e164?: string | null
-          whatsapp_verified_at?: string | null
         }
         Update: {
           ai_provider?: string
@@ -180,8 +176,6 @@ export type Database = {
           monthly_budget?: number | null
           notify_spending?: boolean
           updated_at?: string
-          whatsapp_e164?: string | null
-          whatsapp_verified_at?: string | null
         }
         Relationships: []
       }
@@ -310,66 +304,6 @@ export type Database = {
           processed?: boolean
           records_found?: number
           upload_date?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      whatsapp_messages_log: {
-        Row: {
-          body: string | null
-          created_at: string
-          direction: string
-          from_e164: string | null
-          id: string
-          status: string | null
-          user_id: string | null
-          wa_message_id: string | null
-        }
-        Insert: {
-          body?: string | null
-          created_at?: string
-          direction: string
-          from_e164?: string | null
-          id?: string
-          status?: string | null
-          user_id?: string | null
-          wa_message_id?: string | null
-        }
-        Update: {
-          body?: string | null
-          created_at?: string
-          direction?: string
-          from_e164?: string | null
-          id?: string
-          status?: string | null
-          user_id?: string | null
-          wa_message_id?: string | null
-        }
-        Relationships: []
-      }
-      whatsapp_pairing_codes: {
-        Row: {
-          code: string
-          consumed_at: string | null
-          created_at: string
-          expires_at: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          code: string
-          consumed_at?: string | null
-          created_at?: string
-          expires_at: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          code?: string
-          consumed_at?: string | null
-          created_at?: string
-          expires_at?: string
-          id?: string
           user_id?: string
         }
         Relationships: []
