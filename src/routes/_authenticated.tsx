@@ -13,6 +13,7 @@ import {
   UserCog,
   TrendingUp,
   CreditCard,
+  Target,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -33,6 +34,7 @@ const NAV = [
   { to: "/investments", label: "Investimentos", icon: TrendingUp },
   { to: "/credit-card", label: "Fatura cartão", icon: CreditCard },
   { to: "/categories", label: "Categorias", icon: Tag },
+  { to: "/planning", label: "Planejamento", icon: Target },
   { to: "/import", label: "Importar", icon: Upload },
   { to: "/insights", label: "Consultor IA", icon: Sparkles },
   { to: "/chat", label: "Chat", icon: MessageSquare },
