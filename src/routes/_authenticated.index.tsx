@@ -5,11 +5,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { format } from "date-fns";
 import { getDashboardData } from "@/lib/analytics.functions";
+import { getBudgetProgress } from "@/lib/budgets.functions";
+import { Link } from "@tanstack/react-router";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { TrendingUp, TrendingDown, Wallet, Target, Sparkles, ArrowUpRight, ArrowDownRight, CalendarIcon } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Target, Sparkles, ArrowUpRight, ArrowDownRight, CalendarIcon, AlertTriangle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -66,6 +68,12 @@ function Dashboard() {
     enabled: mode === "preset" || (!!startDate && !!endDate),
   });
   const { data, isLoading } = useQuery(opts);
+
+  const fetchBudget = useServerFn(getBudgetProgress);
+  const { data: budget } = useQuery({
+    queryKey: ["budget-progress", "current"],
+    queryFn: () => fetchBudget({ data: {} }),
+  });
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
@@ -228,6 +236,47 @@ function Dashboard() {
               </div>
             </div>
           </section>
+
+          {budget && budget.rows.length > 0 && (
+            <section className="surface-card p-6 mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Target className="size-4" /> Planejamento do mês
+                </h2>
+                <Link to="/planning" className="text-xs text-primary hover:underline">
+                  Gerenciar
+                </Link>
+              </div>
+              <div className="space-y-3">
+                {budget.rows
+                  .slice()
+                  .sort((a, b) => b.pct - a.pct)
+                  .slice(0, 6)
+                  .map((r) => {
+                    const pct = Math.min(100, r.pct);
+                    return (
+                      <div key={r.id}>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="font-medium flex items-center gap-1.5">
+                            {r.over && <AlertTriangle className="size-3 text-destructive" />}
+                            {r.category}
+                          </span>
+                          <span className={r.over ? "text-destructive font-medium" : "text-muted-foreground"}>
+                            {fmtBRL(r.spent)} / {fmtBRL(r.planned)}
+                          </span>
+                        </div>
+                        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${r.over ? "bg-destructive" : pct > 80 ? "bg-warning" : "bg-primary"}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>
