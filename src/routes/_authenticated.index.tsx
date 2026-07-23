@@ -69,6 +69,12 @@ function Dashboard() {
   });
   const { data, isLoading } = useQuery(opts);
 
+  const fetchBudget = useServerFn(getBudgetProgress);
+  const { data: budget } = useQuery({
+    queryKey: ["budget-progress", "current"],
+    queryFn: () => fetchBudget({ data: {} }),
+  });
+
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto">
       <header className="mb-8 flex items-start md:items-center justify-between flex-wrap gap-4">
@@ -230,6 +236,47 @@ function Dashboard() {
               </div>
             </div>
           </section>
+
+          {budget && budget.rows.length > 0 && (
+            <section className="surface-card p-6 mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Target className="size-4" /> Planejamento do mês
+                </h2>
+                <Link to="/planning" className="text-xs text-primary hover:underline">
+                  Gerenciar
+                </Link>
+              </div>
+              <div className="space-y-3">
+                {budget.rows
+                  .slice()
+                  .sort((a, b) => b.pct - a.pct)
+                  .slice(0, 6)
+                  .map((r) => {
+                    const pct = Math.min(100, r.pct);
+                    return (
+                      <div key={r.id}>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="font-medium flex items-center gap-1.5">
+                            {r.over && <AlertTriangle className="size-3 text-destructive" />}
+                            {r.category}
+                          </span>
+                          <span className={r.over ? "text-destructive font-medium" : "text-muted-foreground"}>
+                            {fmtBRL(r.spent)} / {fmtBRL(r.planned)}
+                          </span>
+                        </div>
+                        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${r.over ? "bg-destructive" : pct > 80 ? "bg-warning" : "bg-primary"}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>
