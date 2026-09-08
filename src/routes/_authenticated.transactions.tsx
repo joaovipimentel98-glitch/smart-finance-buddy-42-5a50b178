@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { listTransactions, updateTransactionCategory, deleteTransaction } from "@/lib/transactions.functions";
 import { toggleInvestment } from "@/lib/investments.functions";
 import { listCategories } from "@/lib/categories.functions";
-import { Search, Trash2, ArrowUp, ArrowDown, ArrowUpDown, TrendingUp } from "lucide-react";
+import { Search, Trash2, ArrowUp, ArrowDown, ArrowUpDown, TrendingUp, WalletCards } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
@@ -96,14 +96,14 @@ function TxPage() {
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 lg:py-9">
       <header className="mb-6">
-        <h1 className="text-3xl font-semibold">Transações</h1>
-        <p className="text-sm text-muted-foreground mt-1">Edite a categoria para ensinar o sistema — uma regra é criada automaticamente.</p>
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/8 px-3 py-1 text-[11px] font-medium text-primary"><WalletCards className="size-3.5" />Controle financeiro</div><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Transações</h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">Organize seus lançamentos, ajuste categorias e ensine a IA a reconhecer seus gastos automaticamente.</p>
       </header>
-      <div className="surface-card p-4 mb-4 flex items-center gap-2">
+      <div className="surface-card mb-4 flex items-center gap-3 p-3.5 sm:p-4">
         <Search className="size-4 text-muted-foreground" />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por descrição..." className="border-0 bg-transparent focus-visible:ring-0" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por descrição..." className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0" />
       </div>
 
       {/* Mobile sort toolbar */}
@@ -139,11 +139,11 @@ function TxPage() {
       {/* Mobile card list */}
       <div className="md:hidden space-y-2">
         {sortedTxns.map((t) => (
-          <div key={t.id} className="surface-card p-3">
+          <div key={t.id} className="surface-card overflow-hidden p-3.5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="text-[11px] text-muted-foreground">{fmtDate(t.date)}</div>
-                <div className="text-sm font-medium truncate">{t.description}</div>
+                <div className="truncate text-sm font-semibold">{t.description}</div>
                 <div className="mt-2 flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1.5 text-xs">
                     <span
@@ -178,7 +178,7 @@ function TxPage() {
                   >
                     <TrendingUp className="size-4" />
                   </button>
-                  <button onClick={() => onDelete(t.id)} aria-label="Excluir" className="text-muted-foreground hover:text-destructive transition p-1">
+                  <button onClick={() => onDelete(t.id)} aria-label="Excluir" className="rounded-lg p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
                     <Trash2 className="size-4" />
                   </button>
                 </div>
@@ -192,7 +192,7 @@ function TxPage() {
       </div>
 
       {/* Desktop table */}
-      <div className="surface-card overflow-hidden hidden md:block">
+      <div className="surface-card hidden overflow-hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground border-b border-border bg-muted/30">
@@ -207,10 +207,10 @@ function TxPage() {
             </thead>
             <tbody>
               {sortedTxns.map((t) => (
-                <tr key={t.id} className="border-b border-border/40 hover:bg-white/[0.02]">
-                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmtDate(t.date)}</td>
-                  <td className="px-4 py-3 max-w-xs truncate">{t.description}</td>
-                  <td className="px-4 py-3">
+                <tr key={t.id} className="group border-b border-border/35 transition-colors hover:bg-primary/[0.025]">
+                  <td className="whitespace-nowrap px-5 py-4 text-xs text-muted-foreground">{fmtDate(t.date)}</td>
+                  <td className="max-w-[320px] px-5 py-4 truncate font-medium">{t.description}</td>
+                  <td className="px-5 py-4">
                     <div className="flex items-center gap-2">
                       <span
                         className="size-2.5 rounded-full shrink-0"
@@ -230,7 +230,7 @@ function TxPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-5 py-4">
                     <span className={`text-xs px-2 py-0.5 rounded-md ${t.transaction_type === "credit" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
                       {t.transaction_type === "credit" ? "Entrada" : "Saída"}
                     </span>
@@ -238,7 +238,7 @@ function TxPage() {
                   <td className={`px-4 py-3 text-right font-medium ${t.transaction_type === "credit" ? "text-success" : "text-destructive"}`}>
                     {fmtBRL(Number(t.amount))}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-5 py-4">
                     <div className="flex items-center gap-1 justify-end">
                       <button
                         onClick={() => onToggleInv(t.id, t.is_investment)}
