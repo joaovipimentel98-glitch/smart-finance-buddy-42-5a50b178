@@ -5,7 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { previewImport, commitImport, listUploads, updateUpload, deleteUpload, type PreviewTxn } from "@/lib/imports.functions";
 import { listCategories, createCategory } from "@/lib/categories.functions";
 import { getProfile } from "@/lib/profile.functions";
-import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, Trash2, Plus, X, Landmark } from "lucide-react";
+import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, Trash2, Plus, X, Landmark, Sparkles, ShieldCheck, ArrowRight, FileCheck2, Database, Clock3 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/import")({
@@ -137,10 +137,10 @@ function ImportPage() {
     const totalDebit = preview.txns.filter((t) => t._keep && t.transaction_type === "debit").reduce((s, t) => s + t.amount, 0);
     const totalCredit = preview.txns.filter((t) => t._keep && t.transaction_type === "credit").reduce((s, t) => s + t.amount, 0);
     return (
-      <div className="p-6 md:p-10 max-w-7xl mx-auto">
-        <header className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 lg:py-9">
+        <header className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">Revisar importação</h1>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/8 px-3 py-1 text-[11px] font-medium text-primary"><FileCheck2 className="size-3.5" />Etapa final · revisão</div><h1 className="text-2xl font-semibold tracking-tight">Revisar importação</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {preview.fileName} · {kept} de {preview.txns.length} transações selecionadas
             </p>
@@ -167,7 +167,13 @@ function ImportPage() {
           </div>
         </header>
 
-        <div className="surface-card p-4 mb-4 flex flex-wrap items-center gap-4 text-sm">
+        <div className="mb-4 grid gap-3 sm:grid-cols-3">
+          <div className="surface-card p-4"><div className="flex items-center gap-2 text-xs text-muted-foreground"><Database className="size-3.5" />Selecionadas</div><p className="mt-2 text-xl font-semibold">{kept}</p></div>
+          <div className="surface-card p-4"><div className="flex items-center gap-2 text-xs text-success"><ArrowRight className="size-3.5" />Entradas</div><p className="mt-2 text-xl font-semibold text-success">{fmtBRL(totalCredit)}</p></div>
+          <div className="surface-card p-4"><div className="flex items-center gap-2 text-xs text-destructive"><ArrowRight className="size-3.5" />Saídas</div><p className="mt-2 text-xl font-semibold text-destructive">{fmtBRL(totalDebit)}</p></div>
+        </div>
+
+        <div className="surface-card mb-4 flex flex-wrap items-center gap-4 p-4 text-sm">
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground uppercase tracking-wider">Origem:</span>
             <div className="inline-flex rounded-lg border border-border overflow-hidden">
@@ -211,7 +217,7 @@ function ImportPage() {
         <div className="surface-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-white/5 text-xs uppercase tracking-wider text-muted-foreground">
+              <thead className="border-b border-border/50 bg-muted/15 text-[10px] uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 text-left w-10"></th>
                   <th className="px-3 py-2 text-left">Data</th>
@@ -224,7 +230,7 @@ function ImportPage() {
               </thead>
               <tbody className="divide-y divide-border/50">
                 {preview.txns.map((t) => (
-                  <tr key={t._id} className={t._keep ? "" : "opacity-40"}>
+                  <tr key={t._id} className={`${t._keep ? "transition-colors hover:bg-primary/[0.02]" : "opacity-35"} border-b border-border/35`}>
                     <td className="px-3 py-2">
                       <input type="checkbox" checked={t._keep} onChange={(e) => updateTxn(t._id, { _keep: e.target.checked })} className="accent-primary" />
                     </td>
@@ -270,8 +276,8 @@ function ImportPage() {
         </div>
 
         {newCatOpen && (
-          <div className="fixed inset-0 bg-black/60 grid place-items-center z-50 p-4" onClick={() => setNewCatOpen(false)}>
-            <div className="surface-card p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm" onClick={() => setNewCatOpen(false)}>
+            <div className="surface-card w-full max-w-sm p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-medium">Nova categoria</h3>
                 <button onClick={() => setNewCatOpen(false)}><X className="size-4" /></button>
@@ -287,7 +293,7 @@ function ImportPage() {
               <button
                 onClick={handleAddCategory}
                 disabled={!newCatName.trim()}
-                className="w-full px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
               >Criar categoria</button>
             </div>
           </div>
@@ -298,10 +304,16 @@ function ImportPage() {
 
   // ============ Upload view ============
   return (
-    <div className="p-6 md:p-10 max-w-5xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-3xl font-semibold">Central de Importação</h1>
-        <p className="text-sm text-muted-foreground mt-1">Aceita OFX, CSV, XLSX, PDF e imagens. Você revisa tudo antes de salvar.</p>
+    <div className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8 lg:py-9">
+      <header className="mb-7">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/8 px-3 py-1 text-[11px] font-medium text-primary">
+          <Sparkles className="size-3.5" />
+          Entrada inteligente de dados
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Central de Importação</h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Envie seu extrato ou fatura. A IA organiza os lançamentos e você revisa tudo antes de salvar.
+        </p>
       </header>
 
       <div
@@ -309,7 +321,7 @@ function ImportPage() {
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
         onClick={() => inputRef.current?.click()}
-        className={`surface-card cursor-pointer p-12 text-center transition border-dashed ${dragOver ? "border-primary bg-primary/5" : ""}`}
+        className={`surface-card group cursor-pointer overflow-hidden border-dashed p-7 text-center transition sm:p-12 ${dragOver ? "border-primary bg-primary/5 shadow-lg shadow-primary/5" : "hover:border-primary/30 hover:bg-primary/[0.02]"}`}
       >
         <input
           ref={inputRef}
@@ -319,25 +331,40 @@ function ImportPage() {
           onChange={(e) => e.target.files && handleFiles(e.target.files)}
         />
         {busy === "previewing" ? (
-          <Loader2 className="size-10 mx-auto text-primary animate-spin" />
+          <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Loader2 className="size-7 animate-spin" /></div>
         ) : (
-          <Upload className="size-10 mx-auto text-primary" />
+          <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary transition group-hover:scale-105"><Upload className="size-7" /></div>
         )}
-        <h3 className="mt-4 text-lg font-medium">{busy === "previewing" ? "Analisando arquivo..." : "Arraste um arquivo aqui"}</h3>
-        <p className="text-sm text-muted-foreground mt-1">ou clique para selecionar</p>
-        <p className="text-xs text-muted-foreground mt-4">OFX • CSV • XLSX • PDF • JPG • PNG</p>
+        <h3 className="mt-5 text-base font-semibold sm:text-lg">{busy === "previewing" ? "Analisando arquivo..." : "Arraste seu arquivo aqui"}</h3>
+        <p className="mt-1 text-sm text-muted-foreground">ou clique para selecionar no computador</p>
+        <div className="mx-auto mt-5 flex max-w-md flex-wrap items-center justify-center gap-2 text-[10px] font-medium text-muted-foreground"><span className="rounded-md bg-secondary/50 px-2 py-1">OFX</span><span className="rounded-md bg-secondary/50 px-2 py-1">CSV</span><span className="rounded-md bg-secondary/50 px-2 py-1">XLSX</span><span className="rounded-md bg-secondary/50 px-2 py-1">PDF</span><span className="rounded-md bg-secondary/50 px-2 py-1">JPG</span><span className="rounded-md bg-secondary/50 px-2 py-1">PNG</span></div>
+      </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div className="surface-card flex items-center gap-3 p-3.5">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-success/10 text-success"><ShieldCheck className="size-4" /></div>
+          <div><p className="text-xs font-semibold">Você revisa antes</p><p className="mt-0.5 text-[10px] text-muted-foreground">Nada é salvo sem confirmação.</p></div>
+        </div>
+        <div className="surface-card flex items-center gap-3 p-3.5">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Sparkles className="size-4" /></div>
+          <div><p className="text-xs font-semibold">Classificação inteligente</p><p className="mt-0.5 text-[10px] text-muted-foreground">Categorias sugeridas automaticamente.</p></div>
+        </div>
+        <div className="surface-card flex items-center gap-3 p-3.5">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground"><FileCheck2 className="size-4" /></div>
+          <div><p className="text-xs font-semibold">Vários formatos</p><p className="mt-0.5 text-[10px] text-muted-foreground">Extratos, faturas e imagens.</p></div>
+        </div>
       </div>
 
       <section className="mt-10">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Categorias</h2>
+          <div><h2 className="text-sm font-semibold">Categorias</h2><p className="mt-0.5 text-xs text-muted-foreground">Usadas para organizar e classificar seus lançamentos.</p></div>
           <button onClick={() => setNewCatOpen(true)} className="text-xs flex items-center gap-1 text-primary hover:underline">
             <Plus className="size-3" /> Nova
           </button>
         </div>
         <div className="flex flex-wrap gap-2 mb-8">
           {(categories ?? []).map((c) => (
-            <span key={c.id} className="px-3 py-1 rounded-full bg-white/5 text-xs border border-border flex items-center gap-1.5">
+            <span key={c.id} className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-secondary/30 px-3 py-1.5 text-xs transition hover:bg-secondary/60">
               <span className="size-2 rounded-full" style={{ background: c.color || "#64748b" }} />
               {c.name}
             </span>
@@ -345,7 +372,7 @@ function ImportPage() {
         </div>
 
         <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Histórico de uploads</h2>
+          <div><h2 className="text-sm font-semibold">Histórico de importações</h2><p className="mt-0.5 text-xs text-muted-foreground">Arquivos processados anteriormente.</p></div>
           {(uploads ?? []).length > 0 && (
             <div className="flex items-center gap-2 text-xs">
               <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
@@ -402,7 +429,7 @@ function ImportPage() {
         </div>
         <div className="space-y-2">
           {(uploads ?? []).map((u) => (
-            <div key={u.id} className={`surface-card p-4 flex items-center gap-4 flex-wrap ${selectedUploads.has(u.id) ? "ring-1 ring-primary/40" : ""}`}>
+            <div key={u.id} className={`surface-card group flex items-center gap-3.5 p-3.5 transition sm:p-4 ${selectedUploads.has(u.id) ? "ring-1 ring-primary/40 bg-primary/[0.025]" : "hover:bg-primary/[0.02]"}`}>
               <input
                 type="checkbox"
                 className="accent-primary"
@@ -415,10 +442,10 @@ function ImportPage() {
                   });
                 }}
               />
-              <FileText className="size-5 text-muted-foreground shrink-0" />
-              <div className="flex-1 min-w-[200px]">
-                <div className="font-medium truncate">{u.file_name}</div>
-                <div className="text-xs text-muted-foreground">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary"><FileText className="size-4.5" /></div>
+              <div className="min-w-[180px] flex-1">
+                <div className="truncate text-sm font-semibold">{u.file_name}</div>
+                <div className="mt-1 text-[11px] text-muted-foreground">
                   {new Date(u.upload_date).toLocaleString("pt-BR")} · {u.file_type.toUpperCase()} · {u.records_found} registros
                   {u.observations && ` · ${u.observations}`}
                 </div>
@@ -442,7 +469,7 @@ function ImportPage() {
                     }
                   }}
                   placeholder="Banco"
-                  className="bg-transparent border border-border rounded px-2 py-1 text-xs w-40"
+                  className="h-8 w-40 rounded-lg border border-border/50 bg-secondary/25 px-2.5 text-xs outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
                 />
               </div>
               {u.processed ? (
@@ -467,7 +494,7 @@ function ImportPage() {
                     toast.error(err instanceof Error ? err.message : "Erro ao apagar");
                   }
                 }}
-                className="text-muted-foreground hover:text-destructive p-2 rounded-lg hover:bg-destructive/10"
+                className="rounded-lg p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
                 title="Apagar arquivo e transações"
               >
                 <Trash2 className="size-4" />
@@ -481,8 +508,8 @@ function ImportPage() {
       </section>
 
       {newCatOpen && (
-        <div className="fixed inset-0 bg-black/60 grid place-items-center z-50 p-4" onClick={() => setNewCatOpen(false)}>
-          <div className="surface-card p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm" onClick={() => setNewCatOpen(false)}>
+          <div className="surface-card w-full max-w-sm p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium">Nova categoria</h3>
               <button onClick={() => setNewCatOpen(false)}><X className="size-4" /></button>
@@ -498,7 +525,7 @@ function ImportPage() {
             <button
               onClick={handleAddCategory}
               disabled={!newCatName.trim()}
-              className="w-full px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
             >Criar categoria</button>
           </div>
         </div>
