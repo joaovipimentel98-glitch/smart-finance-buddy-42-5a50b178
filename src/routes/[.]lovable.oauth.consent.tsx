@@ -11,9 +11,15 @@ type OAuthAuthorizationDetails = {
   redirect_to?: string | null;
 };
 type OAuthNs = {
-  getAuthorizationDetails: (id: string) => Promise<{ data: OAuthAuthorizationDetails | null; error: { message: string } | null }>;
-  approveAuthorization: (id: string) => Promise<{ data: OAuthAuthorizationDetails | null; error: { message: string } | null }>;
-  denyAuthorization: (id: string) => Promise<{ data: OAuthAuthorizationDetails | null; error: { message: string } | null }>;
+  getAuthorizationDetails: (
+    id: string,
+  ) => Promise<{ data: OAuthAuthorizationDetails | null; error: { message: string } | null }>;
+  approveAuthorization: (
+    id: string,
+  ) => Promise<{ data: OAuthAuthorizationDetails | null; error: { message: string } | null }>;
+  denyAuthorization: (
+    id: string,
+  ) => Promise<{ data: OAuthAuthorizationDetails | null; error: { message: string } | null }>;
 };
 function oauthNs(): OAuthNs {
   return (supabase.auth as unknown as { oauth: OAuthNs }).oauth;
@@ -43,7 +49,9 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
     <main className="min-h-screen grid place-items-center px-4">
       <div className="max-w-md surface-card p-8 text-center">
         <h1 className="text-lg font-semibold">Não foi possível carregar esta autorização</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{String((error as Error)?.message ?? error)}</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {String((error as Error)?.message ?? error)}
+        </p>
       </div>
     </main>
   ),
@@ -61,9 +69,17 @@ function Consent() {
     const { data, error } = approve
       ? await oauthNs().approveAuthorization(authorization_id)
       : await oauthNs().denyAuthorization(authorization_id);
-    if (error) { setBusy(false); setError(error.message); return; }
+    if (error) {
+      setBusy(false);
+      setError(error.message);
+      return;
+    }
     const target = data?.redirect_url ?? data?.redirect_to;
-    if (!target) { setBusy(false); setError("Nenhum redirect retornado pelo servidor de autorização."); return; }
+    if (!target) {
+      setBusy(false);
+      setError("Nenhum redirect retornado pelo servidor de autorização.");
+      return;
+    }
     window.location.href = target;
   }
 
@@ -78,20 +94,31 @@ function Consent() {
           </div>
           <div>
             <h1 className="text-lg font-semibold gradient-text">Conectar {clientName}</h1>
-            <p className="text-xs text-muted-foreground">Autorize o acesso à sua conta Finance AI</p>
+            <p className="text-xs text-muted-foreground">
+              Autorize o acesso à sua conta Finance AI
+            </p>
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          Isso permite que <strong className="text-foreground">{clientName}</strong> leia e gerencie seus dados
-          financeiros nesse app, agindo em seu nome.
+          Isso permite que <strong className="text-foreground">{clientName}</strong> leia e gerencie
+          seus dados financeiros nesse app, agindo em seu nome.
         </p>
-        {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <div className="mt-6 flex gap-3">
           <Button className="flex-1" disabled={busy} onClick={() => decide(true)}>
             {busy && <Loader2 className="size-4 animate-spin mr-2" />}
             Autorizar
           </Button>
-          <Button variant="outline" className="flex-1" disabled={busy} onClick={() => decide(false)}>
+          <Button
+            variant="outline"
+            className="flex-1"
+            disabled={busy}
+            onClick={() => decide(false)}
+          >
             Negar
           </Button>
         </div>

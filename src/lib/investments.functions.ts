@@ -92,10 +92,12 @@ const ManualTxnSchema = z.object({
 export const createManualTransactions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      cardLabel: z.string().optional(),
-      txns: z.array(ManualTxnSchema).min(1).max(200),
-    }).parse(d),
+    z
+      .object({
+        cardLabel: z.string().optional(),
+        txns: z.array(ManualTxnSchema).min(1).max(200),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const rows = data.txns.map((t) => ({

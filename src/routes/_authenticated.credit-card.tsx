@@ -21,7 +21,13 @@ type Row = {
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
-const newRow = (): Row => ({ _id: Math.random().toString(36).slice(2), date: today(), description: "", amount: "", category: "Outros" });
+const newRow = (): Row => ({
+  _id: Math.random().toString(36).slice(2),
+  date: today(),
+  description: "",
+  amount: "",
+  category: "Outros",
+});
 
 function CreditCardPage() {
   const qc = useQueryClient();
@@ -32,7 +38,10 @@ function CreditCardPage() {
   const [rows, setRows] = useState<Row[]>([newRow(), newRow(), newRow()]);
   const [busy, setBusy] = useState(false);
 
-  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => fetchCategories() });
+  const { data: categories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => fetchCategories(),
+  });
 
   const update = (id: string, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r._id === id ? { ...r, ...patch } : r)));
@@ -96,13 +105,17 @@ function CreditCardPage() {
         <Upload className="size-5 text-primary" />
         <div className="flex-1">
           <div className="font-medium">Importar PDF / CSV da fatura</div>
-          <div className="text-xs text-muted-foreground">Use a Central de Importação e selecione "Fatura de cartão"</div>
+          <div className="text-xs text-muted-foreground">
+            Use a Central de Importação e selecione "Fatura de cartão"
+          </div>
         </div>
       </Link>
 
       <div className="surface-card p-5 space-y-4">
         <div>
-          <label className="text-xs text-muted-foreground uppercase tracking-wider">Cartão / Banco</label>
+          <label className="text-xs text-muted-foreground uppercase tracking-wider">
+            Cartão / Banco
+          </label>
           <input
             value={cardLabel}
             onChange={(e) => setCardLabel(e.target.value)}
@@ -148,7 +161,9 @@ function CreditCardPage() {
                       className="bg-transparent border border-border rounded px-2 py-1 text-xs w-full"
                     >
                       {(categories ?? []).map((c) => (
-                        <option key={c.id} value={c.name}>{c.name}</option>
+                        <option key={c.id} value={c.name}>
+                          {c.name}
+                        </option>
                       ))}
                     </select>
                   </td>
@@ -162,7 +177,10 @@ function CreditCardPage() {
                     />
                   </td>
                   <td className="px-2 py-2">
-                    <button onClick={() => remove(r._id)} className="text-muted-foreground hover:text-destructive">
+                    <button
+                      onClick={() => remove(r._id)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
                       <Trash2 className="size-4" />
                     </button>
                   </td>
@@ -173,11 +191,15 @@ function CreditCardPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <button onClick={add} className="text-sm text-primary hover:underline flex items-center gap-1">
+          <button
+            onClick={add}
+            className="text-sm text-primary hover:underline flex items-center gap-1"
+          >
             <Plus className="size-3" /> Nova linha
           </button>
           <div className="text-sm text-muted-foreground">
-            Total: <span className="font-mono text-foreground">{fmtBRL(total)}</span> ({valid.length} válidos)
+            Total: <span className="font-mono text-foreground">{fmtBRL(total)}</span> (
+            {valid.length} válidos)
           </div>
           <button
             onClick={save}

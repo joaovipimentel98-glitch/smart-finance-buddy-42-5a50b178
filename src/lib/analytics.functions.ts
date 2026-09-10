@@ -26,8 +26,7 @@ const dashboardInputSchema = z
   })
   .refine(
     (data) =>
-      data.days !== undefined ||
-      (data.startDate !== undefined && data.endDate !== undefined),
+      data.days !== undefined || (data.startDate !== undefined && data.endDate !== undefined),
     { message: "Informe days ou o par startDate/endDate" },
   );
 
@@ -35,12 +34,9 @@ export const getDashboardData = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => dashboardInputSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const since =
-      data.days !== undefined ? daysAgo(data.days) : (data.startDate as string);
+    const since = data.days !== undefined ? daysAgo(data.days) : (data.startDate as string);
     const until =
-      data.days !== undefined
-        ? new Date().toISOString().slice(0, 10)
-        : (data.endDate as string);
+      data.days !== undefined ? new Date().toISOString().slice(0, 10) : (data.endDate as string);
 
     const { data: rows, error } = await context.supabase
       .from("transactions")
@@ -111,7 +107,8 @@ export const getDashboardData = createServerFn({ method: "GET" })
       }));
 
     // Score 0-100 heuristic
-    const savingsRate = totalIncome > 0 ? Math.max(0, (totalIncome - totalExpense) / totalIncome) : 0;
+    const savingsRate =
+      totalIncome > 0 ? Math.max(0, (totalIncome - totalExpense) / totalIncome) : 0;
     const score = Math.round(Math.min(100, savingsRate * 80 + (txns.length > 0 ? 20 : 0)));
 
     return {

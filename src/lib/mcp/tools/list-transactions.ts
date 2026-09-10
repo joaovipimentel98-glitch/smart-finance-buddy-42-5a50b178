@@ -16,13 +16,24 @@ export default defineTool({
   description:
     "List the signed-in user's transactions, most recent first. Optionally filter by a text query (matches description) and by number of days back.",
   inputSchema: {
-    query: z.string().trim().optional().describe("Optional text to match against transaction description (ILIKE)."),
-    days: z.number().int().min(1).max(3650).default(90).describe("How many days back to look. Default 90."),
+    query: z
+      .string()
+      .trim()
+      .optional()
+      .describe("Optional text to match against transaction description (ILIKE)."),
+    days: z
+      .number()
+      .int()
+      .min(1)
+      .max(3650)
+      .default(90)
+      .describe("How many days back to look. Default 90."),
     limit: z.number().int().min(1).max(200).default(50).describe("Max rows to return. Default 50."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ query, days, limit }, ctx) => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     const since = new Date();
     since.setDate(since.getDate() - days);
     let q = supabaseForUser(ctx)

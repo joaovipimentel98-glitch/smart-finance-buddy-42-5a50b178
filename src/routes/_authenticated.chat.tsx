@@ -59,7 +59,9 @@ function ChatPage() {
       ...d,
       userId,
       tokenPresent: !!token,
-      tokenExpiresInSec: expiresAt ? Math.max(0, expiresAt - Math.floor(Date.now() / 1000)) : undefined,
+      tokenExpiresInSec: expiresAt
+        ? Math.max(0, expiresAt - Math.floor(Date.now() / 1000))
+        : undefined,
     }));
   }, [token, userId, expiresAt]);
 
@@ -99,10 +101,10 @@ function ChatPage() {
             // Bounce to /auth preserving return path.
             const next = encodeURIComponent(window.location.pathname);
             window.location.replace(`/auth?next=${next}`);
-            return new Response(
-              JSON.stringify({ error: "Sessão expirada", requestId }),
-              { status: 401, headers: { "Content-Type": "application/json", "X-Request-Id": requestId } },
-            );
+            return new Response(JSON.stringify({ error: "Sessão expirada", requestId }), {
+              status: 401,
+              headers: { "Content-Type": "application/json", "X-Request-Id": requestId },
+            });
           }
           headers.set("Authorization", `Bearer ${freshToken}`);
 
@@ -114,7 +116,9 @@ function ChatPage() {
             try {
               const parsed = JSON.parse(body) as { messages?: unknown[] };
               if (Array.isArray(parsed.messages)) messageCount = parsed.messages.length;
-            } catch { /* ignore */ }
+            } catch {
+              /* ignore */
+            }
           }
 
           setDiag((d) => ({
@@ -151,7 +155,6 @@ function ChatPage() {
     [],
   );
 
-
   const { messages, sendMessage, status } = useChat({
     transport,
     onError: (error) => {
@@ -178,15 +181,21 @@ function ChatPage() {
       await navigator.clipboard.writeText(JSON.stringify(diagRef.current, null, 2));
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   return (
     <div className="flex flex-col h-screen max-h-screen">
       <header className="px-6 md:px-10 py-6 border-b border-border flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2"><MessageSquare className="size-6 text-primary" /> Chat Financeiro</h1>
-          <p className="text-sm text-muted-foreground mt-1">Pergunte qualquer coisa sobre suas finanças — a IA consulta seus dados em tempo real.</p>
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            <MessageSquare className="size-6 text-primary" /> Chat Financeiro
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Pergunte qualquer coisa sobre suas finanças — a IA consulta seus dados em tempo real.
+          </p>
         </div>
         <button
           type="button"
@@ -226,7 +235,9 @@ function ChatPage() {
             <DiagRow label="Erro">
               {diag.lastErrorRedacted ? (
                 <span className="text-destructive break-all">{diag.lastErrorRedacted}</span>
-              ) : "—"}
+              ) : (
+                "—"
+              )}
             </DiagRow>
             <div className="pt-2">
               <button
@@ -234,7 +245,15 @@ function ChatPage() {
                 onClick={copyDiag}
                 className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border border-border hover:bg-background"
               >
-                {copied ? <><Check className="size-3" /> Copiado</> : <><Copy className="size-3" /> Copiar diagnóstico</>}
+                {copied ? (
+                  <>
+                    <Check className="size-3" /> Copiado
+                  </>
+                ) : (
+                  <>
+                    <Copy className="size-3" /> Copiar diagnóstico
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -263,7 +282,10 @@ function ChatPage() {
           {messages.map((m) => {
             const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
             return (
-              <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div
+                key={m.id}
+                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+              >
                 <div
                   className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
                     m.role === "user"
@@ -285,7 +307,9 @@ function ChatPage() {
             <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {errorMessage}
               {diag.lastRequestId && (
-                <div className="text-xs mt-1 opacity-80 font-mono">req={diag.lastRequestId.slice(0, 8)}</div>
+                <div className="text-xs mt-1 opacity-80 font-mono">
+                  req={diag.lastRequestId.slice(0, 8)}
+                </div>
               )}
             </div>
           )}
@@ -293,7 +317,10 @@ function ChatPage() {
       </div>
 
       <form
-        onSubmit={(e) => { e.preventDefault(); send(input); }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          send(input);
+        }}
         className="px-6 md:px-10 py-4 border-t border-border"
       >
         <div className="max-w-3xl mx-auto flex gap-2">

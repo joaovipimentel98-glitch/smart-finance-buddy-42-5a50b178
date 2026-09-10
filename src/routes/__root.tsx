@@ -20,7 +20,9 @@ function NotFoundComponent() {
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold gradient-text">404</h1>
         <p className="mt-4 text-muted-foreground">Página não encontrada.</p>
-        <Link to="/" className="mt-6 inline-block text-primary hover:underline">Voltar ao dashboard</Link>
+        <Link to="/" className="mt-6 inline-block text-primary hover:underline">
+          Voltar ao dashboard
+        </Link>
       </div>
     </div>
   );
@@ -37,7 +39,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <h1 className="text-xl font-semibold">Algo deu errado</h1>
         <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
         <button
-          onClick={() => { router.invalidate(); reset(); }}
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
           className="mt-6 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
         >
           Tentar novamente
@@ -58,8 +63,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:title", content: "Finance AI Dashboard" },
       { property: "og:description", content: "Assistente financeiro pessoal com IA." },
       { name: "twitter:description", content: "Assistente financeiro pessoal com IA." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/19591608-b264-4197-8ef1-3816f9fd0c52/id-preview-17f8f407--0474da95-f223-485c-bb75-f0bc9f12b1a8.lovable.app-1782253337900.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/19591608-b264-4197-8ef1-3816f9fd0c52/id-preview-17f8f407--0474da95-f223-485c-bb75-f0bc9f12b1a8.lovable.app-1782253337900.png" },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/19591608-b264-4197-8ef1-3816f9fd0c52/id-preview-17f8f407--0474da95-f223-485c-bb75-f0bc9f12b1a8.lovable.app-1782253337900.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/19591608-b264-4197-8ef1-3816f9fd0c52/id-preview-17f8f407--0474da95-f223-485c-bb75-f0bc9f12b1a8.lovable.app-1782253337900.png",
+      },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],
@@ -74,8 +87,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR">
-      <head><HeadContent /></head>
-      <body>{children}<Scripts /></body>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
     </html>
   );
 }
@@ -90,7 +108,9 @@ function RootComponent() {
         if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
       }
     });
-    return () => { sub.subscription.unsubscribe(); };
+    return () => {
+      sub.subscription.unsubscribe();
+    };
   }, [queryClient, router]);
   return (
     <QueryClientProvider client={queryClient}>

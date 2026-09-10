@@ -13,13 +13,21 @@ function supabaseForUser(ctx: ToolContext) {
 export default defineTool({
   name: "spending_by_category",
   title: "Spending by category",
-  description: "Return total spent per category over the last N days for the signed-in user (debit transactions only).",
+  description:
+    "Return total spent per category over the last N days for the signed-in user (debit transactions only).",
   inputSchema: {
-    days: z.number().int().min(1).max(3650).default(30).describe("How many days back to aggregate. Default 30."),
+    days: z
+      .number()
+      .int()
+      .min(1)
+      .max(3650)
+      .default(30)
+      .describe("How many days back to aggregate. Default 30."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ days }, ctx) => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     const since = new Date();
     since.setDate(since.getDate() - days);
     const { data, error } = await supabaseForUser(ctx)

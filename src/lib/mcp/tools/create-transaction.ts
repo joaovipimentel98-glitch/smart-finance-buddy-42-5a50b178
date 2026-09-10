@@ -18,13 +18,21 @@ export default defineTool({
     date: z.string().describe("ISO date YYYY-MM-DD."),
     description: z.string().trim().min(1).describe("Description of the transaction."),
     amount: z.number().positive().describe("Positive amount in the account's currency."),
-    transaction_type: z.enum(["debit", "credit"]).describe("'debit' for expense, 'credit' for income."),
+    transaction_type: z
+      .enum(["debit", "credit"])
+      .describe("'debit' for expense, 'credit' for income."),
     category: z.string().trim().min(1).default("Outros").describe("Category name."),
     merchant: z.string().trim().optional().describe("Optional merchant/establishment."),
   },
-  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
   handler: async (input, ctx) => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     const { data, error } = await supabaseForUser(ctx)
       .from("transactions")
       .insert({ ...input, user_id: ctx.getUserId()! })

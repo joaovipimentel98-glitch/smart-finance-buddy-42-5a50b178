@@ -58,7 +58,9 @@ function NavList({ onNavigate, onSignOut }: { onNavigate?: () => void; onSignOut
           </div>
           <div className="min-w-0">
             <div className="gradient-text text-sm font-bold tracking-tight">Finance AI</div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">Controle financeiro pessoal</div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
+              Controle financeiro pessoal
+            </div>
           </div>
         </div>
       </div>

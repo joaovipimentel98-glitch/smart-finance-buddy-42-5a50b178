@@ -36,7 +36,8 @@ export const generateInsights = createServerFn({ method: "POST" })
     // Aggregate per category & per month
     const cat: Record<string, number> = {};
     const monthCat: Record<string, Record<string, number>> = {};
-    let income = 0, expense = 0;
+    let income = 0,
+      expense = 0;
     for (const t of txns) {
       const amt = Number(t.amount);
       const month = t.date.slice(0, 7);
@@ -48,7 +49,9 @@ export const generateInsights = createServerFn({ method: "POST" })
         monthCat[month][t.category] = (monthCat[month][t.category] ?? 0) + amt;
       }
     }
-    const topCats = Object.entries(cat).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const topCats = Object.entries(cat)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
 
     const summary = {
       period_days: 90,
@@ -57,10 +60,12 @@ export const generateInsights = createServerFn({ method: "POST" })
       balance: Math.round(income - expense),
       top_categories: topCats.map(([name, value]) => ({ name, value: Math.round(value) })),
       monthly_by_category: Object.fromEntries(
-        Object.entries(monthCat).map(([m, c]) => [m, Object.fromEntries(Object.entries(c).map(([k, v]) => [k, Math.round(v)]))]),
+        Object.entries(monthCat).map(([m, c]) => [
+          m,
+          Object.fromEntries(Object.entries(c).map(([k, v]) => [k, Math.round(v)])),
+        ]),
       ),
     };
-
 
     const ALLOWED_SEVERITY = ["info", "warning", "critical", "success"] as const;
     type Severity = (typeof ALLOWED_SEVERITY)[number];
@@ -79,16 +84,24 @@ export const generateInsights = createServerFn({ method: "POST" })
     function extractJson(raw: string): string {
       let s = raw.replace(/^\uFEFF/, "").trim();
       // strip code fences (```json ... ``` or ``` ... ```)
-      s = s.replace(/^```(?:json|JSON)?\s*/m, "").replace(/```$/m, "").trim();
+      s = s
+        .replace(/^```(?:json|JSON)?\s*/m, "")
+        .replace(/```$/m, "")
+        .trim();
       // find first { or [ and matching last } or ]
       const firstObj = s.indexOf("{");
       const firstArr = s.indexOf("[");
       let start = -1;
-      let open = "{", close = "}";
+      let open = "{",
+        close = "}";
       if (firstObj !== -1 && (firstArr === -1 || firstObj < firstArr)) {
-        start = firstObj; open = "{"; close = "}";
+        start = firstObj;
+        open = "{";
+        close = "}";
       } else if (firstArr !== -1) {
-        start = firstArr; open = "["; close = "]";
+        start = firstArr;
+        open = "[";
+        close = "]";
       }
       if (start === -1) throw new Error("Nenhum JSON encontrado na resposta da IA.");
       const end = s.lastIndexOf(close);
@@ -123,24 +136,27 @@ export const generateInsights = createServerFn({ method: "POST" })
     const { generateText } = await import("ai");
 
     const callModel = async () =>
-      withProviderFallback(async (model) =>
-        (await generateText({
-          model,
-          messages: [
-            {
-              role: "system",
-              content:
-                "Você é um consultor financeiro pessoal. Analise dados reais e gere insights acionáveis em português brasileiro. Foque em: hábitos de consumo, desperdícios, crescimentos suspeitos, oportunidades de economia e padrões. Seja específico — cite categorias e valores em reais (R$).\n\n" +
-                "RESPONDA EXCLUSIVAMENTE COM JSON VÁLIDO, sem markdown, sem cercas de código, sem texto antes ou depois.\n" +
-                'Formato exato: {"insights":[{"type":"economia","severity":"info","title":"...","description":"..."}]}\n' +
-                "severity ∈ [info, warning, critical, success]. title 3–120 chars. description 10–500 chars.",
-            },
-            {
-              role: "user",
-              content: `Resumo (últimos 90 dias):\n${JSON.stringify(summary)}\n\nGere de 4 a 6 insights. Apenas JSON.`,
-            },
-          ],
-        })).text,
+      withProviderFallback(
+        async (model) =>
+          (
+            await generateText({
+              model,
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "Você é um consultor financeiro pessoal. Analise dados reais e gere insights acionáveis em português brasileiro. Foque em: hábitos de consumo, desperdícios, crescimentos suspeitos, oportunidades de economia e padrões. Seja específico — cite categorias e valores em reais (R$).\n\n" +
+                    "RESPONDA EXCLUSIVAMENTE COM JSON VÁLIDO, sem markdown, sem cercas de código, sem texto antes ou depois.\n" +
+                    'Formato exato: {"insights":[{"type":"economia","severity":"info","title":"...","description":"..."}]}\n' +
+                    "severity ∈ [info, warning, critical, success]. title 3–120 chars. description 10–500 chars.",
+                },
+                {
+                  role: "user",
+                  content: `Resumo (últimos 90 dias):\n${JSON.stringify(summary)}\n\nGere de 4 a 6 insights. Apenas JSON.`,
+                },
+              ],
+            })
+          ).text,
       );
 
     // ---- Try once, retry once on validation failure ----
@@ -154,7 +170,10 @@ export const generateInsights = createServerFn({ method: "POST" })
         const json = JSON.parse(jsonStr);
         const result = InsightSchema.safeParse(json);
         if (!result.success) {
-          const issues = result.error.issues.slice(0, 3).map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+          const issues = result.error.issues
+            .slice(0, 3)
+            .map((i) => `${i.path.join(".")}: ${i.message}`)
+            .join("; ");
           throw new Error(`Schema inválido: ${issues}`);
         }
         parsed = result.data;
