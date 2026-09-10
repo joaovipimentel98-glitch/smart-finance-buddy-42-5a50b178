@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
+    if (error || !data.user) throw redirect({ to: "/auth", search: { next: location.pathname } });
     return { user: data.user };
   },
   component: AppShell,
@@ -129,7 +129,7 @@ function AppShell() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.navigate({ to: "/auth" });
+    router.navigate({ to: "/auth", search: { next: "/" } });
   };
 
   return (
