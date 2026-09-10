@@ -121,8 +121,8 @@ export const generateInsights = createServerFn({ method: "POST" })
       }
 
       // Repair common issues: trailing commas, control chars, smart quotes
-      // eslint-disable-next-line no-control-regex
       body = body
+        // eslint-disable-next-line no-control-regex
         .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
         .replace(/,(\s*[}\]])/g, "$1")
         .replace(/[\u201C\u201D]/g, '"')
