@@ -3,10 +3,31 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
 const DEFAULTS = [
-  "Alimentação","Mercado","Delivery","Restaurante","Transporte","Combustível",
-  "Saúde","Academia","Farmácia","Educação","Trabalho","Assinaturas","Streaming",
-  "Compras","Moradia","Energia","Água","Internet","Telefone","Impostos",
-  "Viagem","Lazer","Investimentos","Reserva","Outros",
+  "Alimentação",
+  "Mercado",
+  "Delivery",
+  "Restaurante",
+  "Transporte",
+  "Combustível",
+  "Saúde",
+  "Academia",
+  "Farmácia",
+  "Educação",
+  "Trabalho",
+  "Assinaturas",
+  "Streaming",
+  "Compras",
+  "Moradia",
+  "Energia",
+  "Água",
+  "Internet",
+  "Telefone",
+  "Impostos",
+  "Viagem",
+  "Lazer",
+  "Investimentos",
+  "Reserva",
+  "Outros",
 ];
 
 export const listCategories = createServerFn({ method: "GET" })
@@ -35,17 +56,27 @@ export const listCategories = createServerFn({ method: "GET" })
 
 export const createCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({
-    name: z.string().min(1).max(50),
-    icon: z.string().max(40).optional().nullable(),
-    color: z.string().max(20).optional().nullable(),
-  }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        name: z.string().min(1).max(50),
+        icon: z.string().max(40).optional().nullable(),
+        color: z.string().max(20).optional().nullable(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const name = data.name.trim();
     const { data: row, error } = await supabase
       .from("categories")
-      .insert({ user_id: userId, name, icon: data.icon ?? null, color: data.color ?? null, is_default: false })
+      .insert({
+        user_id: userId,
+        name,
+        icon: data.icon ?? null,
+        color: data.color ?? null,
+        is_default: false,
+      })
       .select("id, name, is_default, icon, color")
       .single();
     if (error) throw new Error(error.message);
@@ -54,12 +85,16 @@ export const createCategory = createServerFn({ method: "POST" })
 
 export const updateCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({
-    id: z.string().uuid(),
-    name: z.string().min(1).max(50).optional(),
-    icon: z.string().max(40).nullable().optional(),
-    color: z.string().max(20).nullable().optional(),
-  }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        name: z.string().min(1).max(50).optional(),
+        icon: z.string().max(40).nullable().optional(),
+        color: z.string().max(20).nullable().optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const patch: { name?: string; icon?: string | null; color?: string | null } = {};
@@ -71,7 +106,11 @@ export const updateCategory = createServerFn({ method: "POST" })
     let oldName: string | null = null;
     if (patch.name) {
       const { data: existing } = await supabase
-        .from("categories").select("name").eq("id", data.id).eq("user_id", userId).single();
+        .from("categories")
+        .select("name")
+        .eq("id", data.id)
+        .eq("user_id", userId)
+        .single();
       oldName = existing?.name ?? null;
     }
 
@@ -85,31 +124,51 @@ export const updateCategory = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     if (oldName && patch.name && oldName !== patch.name) {
-      await supabase.from("transactions").update({ category: patch.name as string })
-        .eq("user_id", userId).eq("category", oldName);
-      await supabase.from("category_rules").update({ category: patch.name as string })
-        .eq("user_id", userId).eq("category", oldName);
+      await supabase
+        .from("transactions")
+        .update({ category: patch.name as string })
+        .eq("user_id", userId)
+        .eq("category", oldName);
+      await supabase
+        .from("category_rules")
+        .update({ category: patch.name as string })
+        .eq("user_id", userId)
+        .eq("category", oldName);
     }
     return row;
   });
 
 export const deleteCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({
-    id: z.string().uuid(),
-    reassignTo: z.string().min(1).max(50).optional(),
-  }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        reassignTo: z.string().min(1).max(50).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: existing } = await supabase
-      .from("categories").select("name").eq("id", data.id).eq("user_id", userId).single();
+      .from("categories")
+      .select("name")
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .single();
     const target = data.reassignTo?.trim() || "Outros";
 
     if (existing?.name) {
-      await supabase.from("transactions").update({ category: target })
-        .eq("user_id", userId).eq("category", existing.name);
-      await supabase.from("category_rules").delete()
-        .eq("user_id", userId).eq("category", existing.name);
+      await supabase
+        .from("transactions")
+        .update({ category: target })
+        .eq("user_id", userId)
+        .eq("category", existing.name);
+      await supabase
+        .from("category_rules")
+        .delete()
+        .eq("user_id", userId)
+        .eq("category", existing.name);
     }
 
     const { error } = await supabase

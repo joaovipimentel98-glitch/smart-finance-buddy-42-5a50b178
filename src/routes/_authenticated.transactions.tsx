@@ -2,12 +2,26 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { listTransactions, updateTransactionCategory, deleteTransaction } from "@/lib/transactions.functions";
+import {
+  listTransactions,
+  updateTransactionCategory,
+  deleteTransaction,
+} from "@/lib/transactions.functions";
 import { toggleInvestment } from "@/lib/investments.functions";
 import { listCategories } from "@/lib/categories.functions";
 import {
-  Search, Trash2, ArrowUp, ArrowDown, ArrowUpDown, TrendingUp, Loader2, Receipt,
-  ArrowDownLeft, ArrowUpRight, Wallet, X,
+  Search,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  TrendingUp,
+  Loader2,
+  Receipt,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Wallet,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -22,9 +36,17 @@ export const Route = createFileRoute("/_authenticated/transactions")({
   head: () => ({
     meta: [
       { title: "Transações — Finance AI" },
-      { name: "description", content: "Revise, categorize e organize todas as suas transações financeiras em um só lugar." },
+      {
+        name: "description",
+        content:
+          "Revise, categorize e organize todas as suas transações financeiras em um só lugar.",
+      },
       { property: "og:title", content: "Transações — Finance AI" },
-      { property: "og:description", content: "Revise, categorize e organize todas as suas transações financeiras em um só lugar." },
+      {
+        property: "og:description",
+        content:
+          "Revise, categorize e organize todas as suas transações financeiras em um só lugar.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -49,7 +71,11 @@ function TxPage() {
   const removeTx = useServerFn(deleteTransaction);
   const doToggleInv = useServerFn(toggleInvestment);
 
-  const { data: txns, isLoading, isFetching } = useQuery({
+  const {
+    data: txns,
+    isLoading,
+    isFetching,
+  } = useQuery({
     queryKey: ["transactions", search],
     queryFn: () => fetchTx({ data: { limit: 300, search: search || undefined } }),
   });
@@ -80,7 +106,8 @@ function TxPage() {
   }, [filteredTxns, sortKey, sortDir]);
 
   const summary = useMemo(() => {
-    let income = 0, expense = 0;
+    let income = 0,
+      expense = 0;
     for (const t of filteredTxns) {
       const v = Number(t.amount) || 0;
       if (t.transaction_type === "credit") income += v;
@@ -89,7 +116,8 @@ function TxPage() {
     return { income, expense, net: income - expense, count: filteredTxns.length };
   }, [filteredTxns]);
 
-  const hasActiveFilters = typeFilter !== "all" || invFilter !== "all" || Boolean(categoryFilter) || Boolean(search);
+  const hasActiveFilters =
+    typeFilter !== "all" || invFilter !== "all" || Boolean(categoryFilter) || Boolean(search);
 
   const clearFilters = () => {
     setTypeFilter("all");
@@ -202,7 +230,11 @@ function TxPage() {
             className="border-0 bg-transparent focus-visible:ring-0"
           />
           {search && (
-            <button onClick={() => setSearch("")} aria-label="Limpar busca" className="text-muted-foreground hover:text-foreground">
+            <button
+              onClick={() => setSearch("")}
+              aria-label="Limpar busca"
+              className="text-muted-foreground hover:text-foreground"
+            >
               <X className="size-4" />
             </button>
           )}
@@ -211,18 +243,28 @@ function TxPage() {
         <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
           <FilterGroup
             label="Tipo"
-            options={[["all", "Todos"], ["credit", "Entradas"], ["debit", "Saídas"]]}
+            options={[
+              ["all", "Todos"],
+              ["credit", "Entradas"],
+              ["debit", "Saídas"],
+            ]}
             value={typeFilter}
             onChange={(v) => setTypeFilter(v as TypeFilter)}
           />
           <FilterGroup
             label="Investimentos"
-            options={[["all", "Todos"], ["only", "Somente"], ["hide", "Ocultar"]]}
+            options={[
+              ["all", "Todos"],
+              ["only", "Somente"],
+              ["hide", "Ocultar"],
+            ]}
             value={invFilter}
             onChange={(v) => setInvFilter(v as InvFilter)}
           />
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Categoria</span>
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Categoria
+            </span>
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
@@ -230,7 +272,9 @@ function TxPage() {
             >
               <option value="">Todas</option>
               {(cats ?? []).map((c) => (
-                <option key={c.id ?? c.name} value={c.name}>{c.name}</option>
+                <option key={c.id ?? c.name} value={c.name}>
+                  {c.name}
+                </option>
               ))}
             </select>
           </div>
@@ -248,12 +292,14 @@ function TxPage() {
       {/* Mobile sort toolbar */}
       <div className="md:hidden surface-card p-2 mb-3 flex items-center gap-2 overflow-x-auto">
         <span className="text-[11px] text-muted-foreground px-1 shrink-0">Ordenar:</span>
-        {([
-          ["date", "Data"],
-          ["category", "Categoria"],
-          ["transaction_type", "Tipo"],
-          ["description", "Descrição"],
-        ] as [SortKey, string][]).map(([k, label]) => {
+        {(
+          [
+            ["date", "Data"],
+            ["category", "Categoria"],
+            ["transaction_type", "Tipo"],
+            ["description", "Descrição"],
+          ] as [SortKey, string][]
+        ).map(([k, label]) => {
           const active = sortKey === k;
           const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
           return (
@@ -305,20 +351,28 @@ function TxPage() {
                           className="bg-secondary/50 border border-border rounded-md text-xs px-2 py-1 max-w-[140px] focus:outline-none focus:border-primary disabled:opacity-50"
                         >
                           {(cats?.map((c) => c.name) ?? [t.category]).map((c) => (
-                            <option key={c} value={c}>{c}</option>
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
                           ))}
                         </select>
                       </span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-md ${t.transaction_type === "credit" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-md ${t.transaction_type === "credit" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}
+                      >
                         {t.transaction_type === "credit" ? "Entrada" : "Saída"}
                       </span>
                       {t.is_investment && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-primary/15 text-primary">Investimento</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-primary/15 text-primary">
+                          Investimento
+                        </span>
                       )}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
-                    <div className={`text-sm font-semibold whitespace-nowrap ${t.transaction_type === "credit" ? "text-success" : "text-destructive"}`}>
+                    <div
+                      className={`text-sm font-semibold whitespace-nowrap ${t.transaction_type === "credit" ? "text-success" : "text-destructive"}`}
+                    >
                       {fmtBRL(Number(t.amount))}
                     </div>
                     <div className="flex items-center gap-1">
@@ -329,7 +383,11 @@ function TxPage() {
                           <button
                             onClick={() => onToggleInv(t.id, t.is_investment)}
                             aria-label="Marcar como investimento"
-                            title={t.is_investment ? "É investimento — clique para desmarcar" : "Marcar como investimento"}
+                            title={
+                              t.is_investment
+                                ? "É investimento — clique para desmarcar"
+                                : "Marcar como investimento"
+                            }
                             className={`p-1 rounded-md transition ${t.is_investment ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/10"}`}
                           >
                             <TrendingUp className="size-4" />
@@ -356,10 +414,34 @@ function TxPage() {
               <table className="w-full text-sm">
                 <thead className="text-xs text-muted-foreground border-b border-border bg-muted/30">
                   <tr>
-                    <SortableTh label="Data" col="date" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                    <SortableTh label="Descrição" col="description" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                    <SortableTh label="Categoria" col="category" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                    <SortableTh label="Tipo" col="transaction_type" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                    <SortableTh
+                      label="Data"
+                      col="date"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onClick={toggleSort}
+                    />
+                    <SortableTh
+                      label="Descrição"
+                      col="description"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onClick={toggleSort}
+                    />
+                    <SortableTh
+                      label="Categoria"
+                      col="category"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onClick={toggleSort}
+                    />
+                    <SortableTh
+                      label="Tipo"
+                      col="transaction_type"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onClick={toggleSort}
+                    />
                     <th className="text-right px-4 py-3 font-medium">Valor</th>
                     <th className="px-4 py-3 w-24 text-right font-medium">Ações</th>
                   </tr>
@@ -370,9 +452,13 @@ function TxPage() {
                       key={t.id}
                       className={`border-b border-border/40 hover:bg-white/[0.03] transition ${pendingId === t.id ? "opacity-60" : ""}`}
                     >
-                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmtDate(t.date)}</td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                        {fmtDate(t.date)}
+                      </td>
                       <td className="px-4 py-3 max-w-xs">
-                        <div className="truncate" title={t.description}>{t.description}</div>
+                        <div className="truncate" title={t.description}>
+                          {t.description}
+                        </div>
                         {t.is_investment && (
                           <span className="text-[10px] text-primary">Investimento</span>
                         )}
@@ -390,20 +476,28 @@ function TxPage() {
                             className="bg-secondary/50 border border-border rounded-md text-xs px-2 py-1 focus:outline-none focus:border-primary disabled:opacity-50"
                           >
                             {(cats?.map((c) => c.name) ?? [t.category]).map((c) => (
-                              <option key={c} value={c}>{c}</option>
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
                             ))}
                           </select>
                           {Number(t.confidence) < 0.7 && (
-                            <span className="text-[10px] text-warning">~{Math.round(Number(t.confidence) * 100)}%</span>
+                            <span className="text-[10px] text-warning">
+                              ~{Math.round(Number(t.confidence) * 100)}%
+                            </span>
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-md ${t.transaction_type === "credit" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-md ${t.transaction_type === "credit" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}
+                        >
                           {t.transaction_type === "credit" ? "Entrada" : "Saída"}
                         </span>
                       </td>
-                      <td className={`px-4 py-3 text-right font-medium ${t.transaction_type === "credit" ? "text-success" : "text-destructive"}`}>
+                      <td
+                        className={`px-4 py-3 text-right font-medium ${t.transaction_type === "credit" ? "text-success" : "text-destructive"}`}
+                      >
                         {fmtBRL(Number(t.amount))}
                       </td>
                       <td className="px-4 py-3">
@@ -414,7 +508,11 @@ function TxPage() {
                             <>
                               <button
                                 onClick={() => onToggleInv(t.id, t.is_investment)}
-                                title={t.is_investment ? "É investimento — clique para desmarcar" : "Marcar como investimento"}
+                                title={
+                                  t.is_investment
+                                    ? "É investimento — clique para desmarcar"
+                                    : "Marcar como investimento"
+                                }
                                 className={`p-1.5 rounded-md transition ${t.is_investment ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/10"}`}
                               >
                                 <TrendingUp className="size-4" />
@@ -442,7 +540,17 @@ function TxPage() {
   );
 }
 
-function SummaryCard({ label, value, icon, tone }: { label: string; value: string; icon: React.ReactNode; tone: string }) {
+function SummaryCard({
+  label,
+  value,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  tone: string;
+}) {
   return (
     <div className="surface-card p-4">
       <div className="flex items-center justify-between text-xs uppercase tracking-wider text-muted-foreground">
@@ -455,7 +563,10 @@ function SummaryCard({ label, value, icon, tone }: { label: string; value: strin
 }
 
 function FilterGroup({
-  label, options, value, onChange,
+  label,
+  options,
+  value,
+  onChange,
 }: {
   label: string;
   options: [string, string][];
@@ -501,10 +612,15 @@ function EmptyState({ hasFilters, onClear }: { hasFilters: boolean; onClear: () 
       <Receipt className="size-10 mx-auto text-muted-foreground/60" />
       <h3 className="mt-4 font-medium">Nenhuma transação encontrada</h3>
       <p className="text-sm text-muted-foreground mt-1">
-        {hasFilters ? "Tente ajustar a busca ou os filtros aplicados." : "Importe um extrato para começar a acompanhar seus gastos."}
+        {hasFilters
+          ? "Tente ajustar a busca ou os filtros aplicados."
+          : "Importe um extrato para começar a acompanhar seus gastos."}
       </p>
       {hasFilters && (
-        <button onClick={onClear} className="mt-4 px-4 py-2 rounded-lg border border-border text-sm hover:bg-white/5">
+        <button
+          onClick={onClear}
+          className="mt-4 px-4 py-2 rounded-lg border border-border text-sm hover:bg-white/5"
+        >
           Limpar filtros
         </button>
       )}
@@ -513,7 +629,11 @@ function EmptyState({ hasFilters, onClear }: { hasFilters: boolean; onClear: () 
 }
 
 function SortableTh({
-  label, col, sortKey, sortDir, onClick,
+  label,
+  col,
+  sortKey,
+  sortDir,
+  onClick,
 }: {
   label: string;
   col: SortKey;

@@ -2,7 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { TrendingUp, TrendingDown, Wallet, Loader2, ToggleLeft } from "lucide-react";
-import { getInvestmentsSummary, listInvestments, toggleInvestment } from "@/lib/investments.functions";
+import {
+  getInvestmentsSummary,
+  listInvestments,
+  toggleInvestment,
+} from "@/lib/investments.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/investments")({
@@ -63,7 +67,9 @@ function InvestmentsPage() {
             <div className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
               <Wallet className="size-3" /> Saldo líquido
             </div>
-            <div className={`text-2xl font-semibold mt-2 ${s.saldoLiquido >= 0 ? "text-success" : "text-destructive"}`}>
+            <div
+              className={`text-2xl font-semibold mt-2 ${s.saldoLiquido >= 0 ? "text-success" : "text-destructive"}`}
+            >
               {fmtBRL(s.saldoLiquido)}
             </div>
           </div>
@@ -80,7 +86,9 @@ function InvestmentsPage() {
             <div className="text-2xl font-semibold mt-2">{fmtBRL(s.totalResgatado)}</div>
           </div>
           <div className="surface-card p-5">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider">Lançamentos</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              Lançamentos
+            </div>
             <div className="text-2xl font-semibold mt-2">{s.count}</div>
           </div>
         </div>
@@ -119,7 +127,7 @@ function InvestmentsPage() {
           <div className="space-y-1">
             {s.byMonth.map((m) => {
               const max = Math.max(...s.byMonth.map((x) => Math.abs(x.total)));
-              const pct = max > 0 ? Math.abs(m.total) / max * 100 : 0;
+              const pct = max > 0 ? (Math.abs(m.total) / max) * 100 : 0;
               return (
                 <div key={m.month} className="flex items-center gap-3 text-sm">
                   <span className="w-20 text-muted-foreground">{m.month}</span>
@@ -143,7 +151,8 @@ function InvestmentsPage() {
         </h2>
         {rows.length === 0 ? (
           <div className="surface-card p-10 text-center text-sm text-muted-foreground">
-            Nenhum investimento marcado ainda. Em Transações, marque um lançamento como investimento.
+            Nenhum investimento marcado ainda. Em Transações, marque um lançamento como
+            investimento.
           </div>
         ) : (
           <div className="surface-card overflow-hidden">
@@ -161,11 +170,18 @@ function InvestmentsPage() {
                 <tbody className="divide-y divide-border/50">
                   {rows.map((r) => (
                     <tr key={r.id}>
-                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{r.date}</td>
-                      <td className="px-3 py-2 max-w-md truncate" title={r.description}>{r.description}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                        {r.date}
+                      </td>
+                      <td className="px-3 py-2 max-w-md truncate" title={r.description}>
+                        {r.description}
+                      </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">{r.category}</td>
-                      <td className={`px-3 py-2 text-right font-mono ${r.transaction_type === "debit" ? "text-foreground" : "text-success"}`}>
-                        {r.transaction_type === "debit" ? "" : "+"}{fmtBRL(Number(r.amount))}
+                      <td
+                        className={`px-3 py-2 text-right font-mono ${r.transaction_type === "debit" ? "text-foreground" : "text-success"}`}
+                      >
+                        {r.transaction_type === "debit" ? "" : "+"}
+                        {fmtBRL(Number(r.amount))}
                       </td>
                       <td className="px-3 py-2">
                         <button

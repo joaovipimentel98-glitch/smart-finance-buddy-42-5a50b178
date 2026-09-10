@@ -13,13 +13,21 @@ function supabaseForUser(ctx: ToolContext) {
 export default defineTool({
   name: "monthly_totals",
   title: "Monthly totals",
-  description: "Return income, expense, and balance per month over the last N months for the signed-in user.",
+  description:
+    "Return income, expense, and balance per month over the last N months for the signed-in user.",
   inputSchema: {
-    months: z.number().int().min(1).max(36).default(6).describe("How many months back to aggregate. Default 6."),
+    months: z
+      .number()
+      .int()
+      .min(1)
+      .max(36)
+      .default(6)
+      .describe("How many months back to aggregate. Default 6."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ months }, ctx) => {
-    if (!ctx.isAuthenticated()) return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     const since = new Date();
     since.setMonth(since.getMonth() - months);
     const { data, error } = await supabaseForUser(ctx)

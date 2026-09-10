@@ -2,7 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { listCategories, createCategory, updateCategory, deleteCategory } from "@/lib/categories.functions";
+import {
+  listCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "@/lib/categories.functions";
 import { toast } from "sonner";
 import * as Icons from "lucide-react";
 import { Plus, Pencil, Trash2, X, Check, Tag } from "lucide-react";
@@ -13,29 +18,96 @@ export const Route = createFileRoute("/_authenticated/categories")({
 });
 
 const PALETTE = [
-  "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16",
-  "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9",
-  "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef",
-  "#ec4899", "#f43f5e", "#64748b", "#78716c", "#0f172a",
+  "#ef4444",
+  "#f97316",
+  "#f59e0b",
+  "#eab308",
+  "#84cc16",
+  "#22c55e",
+  "#10b981",
+  "#14b8a6",
+  "#06b6d4",
+  "#0ea5e9",
+  "#3b82f6",
+  "#6366f1",
+  "#8b5cf6",
+  "#a855f7",
+  "#d946ef",
+  "#ec4899",
+  "#f43f5e",
+  "#64748b",
+  "#78716c",
+  "#0f172a",
 ];
 
 const ICON_CHOICES = [
-  "Tag", "ShoppingCart", "ShoppingBag", "Utensils", "Coffee", "Pizza", "Beer",
-  "Car", "Fuel", "Bus", "Plane", "Train", "Bike",
-  "Home", "Lightbulb", "Droplet", "Wifi", "Phone", "Tv",
-  "Heart", "Pill", "Dumbbell", "Stethoscope", "GraduationCap",
-  "Briefcase", "Wallet", "CreditCard", "Landmark", "PiggyBank", "TrendingUp",
-  "Film", "Music", "Gamepad2", "Gift", "Sparkles", "Palette",
-  "Baby", "Dog", "Cat", "Shirt", "BookOpen", "Hammer",
+  "Tag",
+  "ShoppingCart",
+  "ShoppingBag",
+  "Utensils",
+  "Coffee",
+  "Pizza",
+  "Beer",
+  "Car",
+  "Fuel",
+  "Bus",
+  "Plane",
+  "Train",
+  "Bike",
+  "Home",
+  "Lightbulb",
+  "Droplet",
+  "Wifi",
+  "Phone",
+  "Tv",
+  "Heart",
+  "Pill",
+  "Dumbbell",
+  "Stethoscope",
+  "GraduationCap",
+  "Briefcase",
+  "Wallet",
+  "CreditCard",
+  "Landmark",
+  "PiggyBank",
+  "TrendingUp",
+  "Film",
+  "Music",
+  "Gamepad2",
+  "Gift",
+  "Sparkles",
+  "Palette",
+  "Baby",
+  "Dog",
+  "Cat",
+  "Shirt",
+  "BookOpen",
+  "Hammer",
 ];
 
-function IconPreview({ name, color, size = 16 }: { name?: string | null; color?: string | null; size?: number }) {
+function IconPreview({
+  name,
+  color,
+  size = 16,
+}: {
+  name?: string | null;
+  color?: string | null;
+  size?: number;
+}) {
   const iconName = name && (Icons as Record<string, unknown>)[name] ? name : "Tag";
-  const Comp = (Icons as unknown as Record<string, React.ComponentType<{ size?: number; color?: string }>>)[iconName];
+  const Comp = (
+    Icons as unknown as Record<string, React.ComponentType<{ size?: number; color?: string }>>
+  )[iconName];
   return <Comp size={size} color={color || "currentColor"} />;
 }
 
-type Cat = { id: string; name: string; is_default: boolean; icon: string | null; color: string | null };
+type Cat = {
+  id: string;
+  name: string;
+  is_default: boolean;
+  icon: string | null;
+  color: string | null;
+};
 
 function CategoriesPage() {
   const qc = useQueryClient();
@@ -45,7 +117,10 @@ function CategoriesPage() {
   const removeCat = useServerFn(deleteCategory);
 
   const { data: cats } = useQuery({ queryKey: ["categories"], queryFn: () => fetchCats() });
-  const sorted = useMemo(() => [...(cats ?? [])].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")), [cats]);
+  const sorted = useMemo(
+    () => [...(cats ?? [])].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    [cats],
+  );
 
   const [editing, setEditing] = useState<Cat | null>(null);
   const [creating, setCreating] = useState(false);
@@ -59,7 +134,7 @@ function CategoriesPage() {
   const handleDelete = async (c: Cat) => {
     const reassign = prompt(
       `Excluir "${c.name}"?\nAs transações desta categoria serão reatribuídas para outra. Digite o nome da nova categoria (ou deixe em branco para "Outros"):`,
-      "Outros"
+      "Outros",
     );
     if (reassign === null) return;
     try {
@@ -77,7 +152,8 @@ function CategoriesPage() {
         <div>
           <h1 className="text-3xl font-semibold">Categorias</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Organize seus gastos com cores e ícones. Mudanças aparecem na hora em Importar e Transações.
+            Organize seus gastos com cores e ícones. Mudanças aparecem na hora em Importar e
+            Transações.
           </p>
         </div>
         <button
@@ -104,23 +180,36 @@ function CategoriesPage() {
                 <td className="px-4 py-3">
                   <div
                     className="size-9 rounded-lg grid place-items-center"
-                    style={{ background: (c.color || "#64748b") + "22", color: c.color || "#94a3b8" }}
+                    style={{
+                      background: (c.color || "#64748b") + "22",
+                      color: c.color || "#94a3b8",
+                    }}
                   >
                     <IconPreview name={c.icon} color={c.color} size={18} />
                   </div>
                 </td>
                 <td className="px-4 py-3 font-medium">{c.name}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-[10px] uppercase tracking-wider ${c.is_default ? "text-muted-foreground" : "text-primary"}`}>
+                  <span
+                    className={`text-[10px] uppercase tracking-wider ${c.is_default ? "text-muted-foreground" : "text-primary"}`}
+                  >
                     {c.is_default ? "padrão" : "minha"}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="inline-flex gap-2">
-                    <button onClick={() => setEditing(c)} className="p-1.5 text-muted-foreground hover:text-foreground" title="Editar">
+                    <button
+                      onClick={() => setEditing(c)}
+                      className="p-1.5 text-muted-foreground hover:text-foreground"
+                      title="Editar"
+                    >
                       <Pencil className="size-4" />
                     </button>
-                    <button onClick={() => handleDelete(c)} className="p-1.5 text-muted-foreground hover:text-destructive" title="Excluir">
+                    <button
+                      onClick={() => handleDelete(c)}
+                      className="p-1.5 text-muted-foreground hover:text-destructive"
+                      title="Excluir"
+                    >
                       <Trash2 className="size-4" />
                     </button>
                   </div>
@@ -128,10 +217,12 @@ function CategoriesPage() {
               </tr>
             ))}
             {sorted.length === 0 && (
-              <tr><td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
-                <Tag className="size-8 mx-auto mb-2 opacity-50" />
-                Nenhuma categoria ainda.
-              </td></tr>
+              <tr>
+                <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
+                  <Tag className="size-8 mx-auto mb-2 opacity-50" />
+                  Nenhuma categoria ainda.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -140,7 +231,10 @@ function CategoriesPage() {
       {(editing || creating) && (
         <CategoryDialog
           initial={editing ?? undefined}
-          onClose={() => { setEditing(null); setCreating(false); }}
+          onClose={() => {
+            setEditing(null);
+            setCreating(false);
+          }}
           onSave={async (form) => {
             try {
               if (editing) {
@@ -164,11 +258,17 @@ function CategoriesPage() {
 }
 
 function CategoryDialog({
-  initial, onClose, onSave,
+  initial,
+  onClose,
+  onSave,
 }: {
   initial?: Cat;
   onClose: () => void;
-  onSave: (form: { name: string; icon: string | null; color: string | null }) => void | Promise<void>;
+  onSave: (form: {
+    name: string;
+    icon: string | null;
+    color: string | null;
+  }) => void | Promise<void>;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [icon, setIcon] = useState<string | null>(initial?.icon ?? "Tag");
@@ -187,10 +287,15 @@ function CategoryDialog({
 
   return (
     <div className="fixed inset-0 bg-black/60 grid place-items-center z-50 p-4" onClick={onClose}>
-      <div className="surface-card p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="surface-card p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-medium text-lg">{initial ? "Editar categoria" : "Nova categoria"}</h3>
-          <button onClick={onClose}><X className="size-4" /></button>
+          <button onClick={onClose}>
+            <X className="size-4" />
+          </button>
         </div>
 
         <div className="flex items-center gap-3 mb-5 p-3 rounded-lg bg-white/5">
@@ -202,11 +307,15 @@ function CategoryDialog({
           </div>
           <div className="text-sm">
             <div className="font-medium">{name || "Pré-visualização"}</div>
-            <div className="text-xs text-muted-foreground">{icon} · {color}</div>
+            <div className="text-xs text-muted-foreground">
+              {icon} · {color}
+            </div>
           </div>
         </div>
 
-        <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-2">Nome</label>
+        <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-2">
+          Nome
+        </label>
         <input
           autoFocus
           value={name}
@@ -216,7 +325,9 @@ function CategoryDialog({
           className="w-full bg-transparent border border-border rounded-lg px-3 py-2 text-sm mb-5"
         />
 
-        <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-2">Cor</label>
+        <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-2">
+          Cor
+        </label>
         <div className="grid grid-cols-10 gap-2 mb-5">
           {PALETTE.map((c) => (
             <button
@@ -232,7 +343,9 @@ function CategoryDialog({
           ))}
         </div>
 
-        <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-2">Ícone</label>
+        <label className="block text-xs uppercase tracking-wider text-muted-foreground mb-2">
+          Ícone
+        </label>
         <div className="grid grid-cols-8 gap-2 mb-6 max-h-48 overflow-y-auto pr-1">
           {ICON_CHOICES.map((n) => (
             <button
@@ -248,7 +361,12 @@ function CategoryDialog({
         </div>
 
         <div className="flex gap-2 justify-end">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-white/5">Cancelar</button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-white/5"
+          >
+            Cancelar
+          </button>
           <button
             onClick={submit}
             disabled={saving || !name.trim()}

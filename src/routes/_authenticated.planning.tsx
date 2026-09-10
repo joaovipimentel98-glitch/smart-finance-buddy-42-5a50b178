@@ -5,19 +5,14 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Target, Save, Trash2, AlertTriangle } from "lucide-react";
 import { listCategories } from "@/lib/categories.functions";
-import {
-  getBudgetProgress,
-  upsertBudget,
-  deleteBudget,
-} from "@/lib/budgets.functions";
+import { getBudgetProgress, upsertBudget, deleteBudget } from "@/lib/budgets.functions";
 
 export const Route = createFileRoute("/_authenticated/planning")({
   component: PlanningPage,
   head: () => ({ meta: [{ title: "Planejamento — Finance AI" }] }),
 });
 
-const fmtBRL = (n: number) =>
-  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtBRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function PlanningPage() {
   const qc = useQueryClient();
@@ -116,7 +111,11 @@ function PlanningPage() {
 
       <section className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
         <SummaryCard label="Planejado" value={fmtBRL(totalPlanned)} tone="primary" />
-        <SummaryCard label="Realizado" value={fmtBRL(totalSpent)} tone={totalSpent > totalPlanned ? "destructive" : "success"} />
+        <SummaryCard
+          label="Realizado"
+          value={fmtBRL(totalSpent)}
+          tone={totalSpent > totalPlanned ? "destructive" : "success"}
+        />
         <SummaryCard
           label="Categorias estouradas"
           value={String(overCount)}
@@ -166,16 +165,16 @@ function PlanningPage() {
                           min="0"
                           step="0.01"
                           value={displayVal}
-                          onChange={(e) =>
-                            setDrafts((d) => ({ ...d, [c.name]: e.target.value }))
-                          }
+                          onChange={(e) => setDrafts((d) => ({ ...d, [c.name]: e.target.value }))}
                           onKeyDown={(e) => e.key === "Enter" && handleSave(c.name)}
                           placeholder="0,00"
                           className="w-28 bg-transparent border border-border rounded-md px-2 py-1 text-right text-sm"
                         />
                       </div>
                     </td>
-                    <td className={`px-4 py-3 text-right font-medium ${over ? "text-destructive" : ""}`}>
+                    <td
+                      className={`px-4 py-3 text-right font-medium ${over ? "text-destructive" : ""}`}
+                    >
                       {fmtBRL(spent)}
                     </td>
                     <td className="px-4 py-3">
@@ -189,7 +188,9 @@ function PlanningPage() {
                               style={{ width: `${pct}%` }}
                             />
                           </div>
-                          <span className={`text-xs w-12 text-right ${over ? "text-destructive" : "text-muted-foreground"}`}>
+                          <span
+                            className={`text-xs w-12 text-right ${over ? "text-destructive" : "text-muted-foreground"}`}
+                          >
                             {Math.round((spent / planned) * 100)}%
                           </span>
                         </div>
@@ -239,7 +240,8 @@ function PlanningPage() {
           <AlertTriangle className="size-5 text-destructive shrink-0 mt-0.5" />
           <div className="text-sm">
             <div className="font-medium text-destructive">
-              {overCount} {overCount === 1 ? "categoria estourada" : "categorias estouradas"} este mês
+              {overCount} {overCount === 1 ? "categoria estourada" : "categorias estouradas"} este
+              mês
             </div>
             <div className="text-muted-foreground mt-1">
               {progress?.rows

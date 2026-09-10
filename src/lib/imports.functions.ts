@@ -10,7 +10,6 @@ const ImportInput = z.object({
   base64: z.string().min(1).max(MAX_BASE64_LEN),
 });
 
-
 const TxnSchema = z.object({
   date: z.string(),
   description: z.string(),
@@ -20,11 +19,20 @@ const TxnSchema = z.object({
 });
 type ParsedTxn = z.infer<typeof TxnSchema>;
 
-function detectKind(fileName: string, mime: string): "ofx" | "csv" | "xlsx" | "pdf" | "image" | "unknown" {
+function detectKind(
+  fileName: string,
+  mime: string,
+): "ofx" | "csv" | "xlsx" | "pdf" | "image" | "unknown" {
   const lower = fileName.toLowerCase();
   if (lower.endsWith(".ofx") || mime.includes("ofx")) return "ofx";
   if (lower.endsWith(".csv") || mime === "text/csv") return "csv";
-  if (lower.endsWith(".xlsx") || lower.endsWith(".xls") || mime.includes("spreadsheet") || mime.includes("excel")) return "xlsx";
+  if (
+    lower.endsWith(".xlsx") ||
+    lower.endsWith(".xls") ||
+    mime.includes("spreadsheet") ||
+    mime.includes("excel")
+  )
+    return "xlsx";
   if (lower.endsWith(".pdf") || mime === "application/pdf") return "pdf";
   if (mime.startsWith("image/") || /\.(jpg|jpeg|png|webp)$/i.test(lower)) return "image";
   return "unknown";
@@ -45,13 +53,15 @@ async function extractFromImageOrPdf(base64: string, mime: string): Promise<Pars
   const dataUrl = `data:${mime};base64,${base64}`;
 
   const schema = z.object({
-    transactions: z.array(z.object({
-      date: z.string().describe("ISO date YYYY-MM-DD"),
-      description: z.string(),
-      amount: z.number().describe("positive number, no sign"),
-      transaction_type: z.enum(["credit", "debit"]),
-      merchant: z.string().optional(),
-    })),
+    transactions: z.array(
+      z.object({
+        date: z.string().describe("ISO date YYYY-MM-DD"),
+        description: z.string(),
+        amount: z.number().describe("positive number, no sign"),
+        transaction_type: z.enum(["credit", "debit"]),
+        merchant: z.string().optional(),
+      }),
+    ),
   });
 
   try {
@@ -62,7 +72,10 @@ async function extractFromImageOrPdf(base64: string, mime: string): Promise<Pars
         {
           role: "user",
           content: [
-            { type: "text", text: "Extraia TODAS as transações financeiras deste extrato bancário, fatura de cartão ou recibo. Responda APENAS com JSON válido no schema fornecido. Datas em ISO YYYY-MM-DD. amount sempre positivo (sem sinal). transaction_type='debit' para saídas/gastos e 'credit' para entradas/depósitos. Se não encontrar nenhuma transação, retorne { \"transactions\": [] }. Mantenha descrições originais em português." },
+            {
+              type: "text",
+              text: "Extraia TODAS as transações financeiras deste extrato bancário, fatura de cartão ou recibo. Responda APENAS com JSON válido no schema fornecido. Datas em ISO YYYY-MM-DD. amount sempre positivo (sem sinal). transaction_type='debit' para saídas/gastos e 'credit' para entradas/depósitos. Se não encontrar nenhuma transação, retorne { \"transactions\": [] }. Mantenha descrições originais em português.",
+            },
             { type: "image", image: dataUrl },
           ],
         },
@@ -80,13 +93,17 @@ async function extractFromImageOrPdf(base64: string, mime: string): Promise<Pars
           // fall through
         }
       }
-      throw new Error("A IA não conseguiu extrair transações deste arquivo. Tente uma imagem mais nítida ou envie CSV/OFX do banco.");
+      throw new Error(
+        "A IA não conseguiu extrair transações deste arquivo. Tente uma imagem mais nítida ou envie CSV/OFX do banco.",
+      );
     }
     throw e;
   }
 }
 
-async function aiCategorize(txns: { description: string }[]): Promise<Array<{ category: string; subcategory?: string; confidence: number }>> {
+async function aiCategorize(
+  txns: { description: string }[],
+): Promise<Array<{ category: string; subcategory?: string; confidence: number }>> {
   if (txns.length === 0) return [];
   const { getAiProvider, CHAT_MODEL } = await import("./ai-gateway.server");
   const { generateText, Output } = await import("ai");
@@ -95,17 +112,20 @@ async function aiCategorize(txns: { description: string }[]): Promise<Array<{ ca
     model: provider(CHAT_MODEL),
     output: Output.object({
       schema: z.object({
-        results: z.array(z.object({
-          category: z.string(),
-          subcategory: z.string().optional(),
-          confidence: z.number().min(0).max(1),
-        })),
+        results: z.array(
+          z.object({
+            category: z.string(),
+            subcategory: z.string().optional(),
+            confidence: z.number().min(0).max(1),
+          }),
+        ),
       }),
     }),
     messages: [
       {
         role: "system",
-        content: "Você categoriza transações financeiras em português. Use APENAS uma das categorias: Alimentação, Mercado, Delivery, Restaurante, Transporte, Combustível, Saúde, Academia, Farmácia, Educação, Trabalho, Assinaturas, Streaming, Compras, Moradia, Energia, Água, Internet, Telefone, Impostos, Viagem, Lazer, Investimentos, Reserva, Outros. Responda na mesma ordem do input.",
+        content:
+          "Você categoriza transações financeiras em português. Use APENAS uma das categorias: Alimentação, Mercado, Delivery, Restaurante, Transporte, Combustível, Saúde, Academia, Farmácia, Educação, Trabalho, Assinaturas, Streaming, Compras, Moradia, Energia, Água, Internet, Telefone, Impostos, Viagem, Lazer, Investimentos, Reserva, Outros. Responda na mesma ordem do input.",
       },
       {
         role: "user",
@@ -147,7 +167,10 @@ export const previewImport = createServerFn({ method: "POST" })
       logStep(reqId, "preview-start", { fileName: data.fileName, mime: data.fileType, kind });
 
       step = "detect-kind";
-      if (kind === "unknown") throw new Error(`Tipo de arquivo não suportado (nome="${data.fileName}", mime="${data.fileType}").`);
+      if (kind === "unknown")
+        throw new Error(
+          `Tipo de arquivo não suportado (nome="${data.fileName}", mime="${data.fileType}").`,
+        );
 
       step = `parse-${kind}`;
       const { parseCSV, parseOFX, parseXLSX } = await import("./parsers.server");
@@ -155,11 +178,17 @@ export const previewImport = createServerFn({ method: "POST" })
       if (kind === "csv") raw = parseCSV(decodeBase64ToString(data.base64));
       else if (kind === "ofx") raw = parseOFX(decodeBase64ToString(data.base64));
       else if (kind === "xlsx") raw = parseXLSX(decodeBase64ToArrayBuffer(data.base64));
-      else if (kind === "pdf" || kind === "image") raw = await extractFromImageOrPdf(data.base64, data.fileType);
+      else if (kind === "pdf" || kind === "image")
+        raw = await extractFromImageOrPdf(data.base64, data.fileType);
       logStep(reqId, "parsed", { count: raw.length });
 
       if (raw.length === 0) {
-        return { txns: [] as PreviewTxn[], reqId, fileName: data.fileName, fileType: data.fileType };
+        return {
+          txns: [] as PreviewTxn[],
+          reqId,
+          fileName: data.fileName,
+          fileType: data.fileType,
+        };
       }
 
       step = "load-rules";
@@ -178,7 +207,11 @@ export const previewImport = createServerFn({ method: "POST" })
         if (rules) {
           for (const r of rules) {
             if (desc.includes(r.merchant_pattern.toUpperCase())) {
-              matched = { category: r.category, subcategory: r.subcategory ?? undefined, confidence: Number(r.confidence) };
+              matched = {
+                category: r.category,
+                subcategory: r.subcategory ?? undefined,
+                confidence: Number(r.confidence),
+              };
               break;
             }
           }
@@ -201,7 +234,9 @@ export const previewImport = createServerFn({ method: "POST" })
       if (needAi.length > 0 && needAi.length <= 100) {
         step = "categorize-ai";
         try {
-          const aiResults = await aiCategorize(needAi.map((i) => ({ description: enriched[i].description })));
+          const aiResults = await aiCategorize(
+            needAi.map((i) => ({ description: enriched[i].description })),
+          );
           needAi.forEach((idx, j) => {
             const r = aiResults[j];
             if (r) {
@@ -212,7 +247,10 @@ export const previewImport = createServerFn({ method: "POST" })
           });
         } catch (e) {
           const { redactSecrets } = await import("./ai-gateway.server");
-          console.warn(`[import:${reqId}] AI categorize falhou:`, redactSecrets(e instanceof Error ? e.message : String(e)));
+          console.warn(
+            `[import:${reqId}] AI categorize falhou:`,
+            redactSecrets(e instanceof Error ? e.message : String(e)),
+          );
         }
       }
 
@@ -226,7 +264,6 @@ export const previewImport = createServerFn({ method: "POST" })
     }
   });
 
-
 // ============ COMMIT: insert user-confirmed transactions ============
 
 const CommitInput = z.object({
@@ -235,16 +272,21 @@ const CommitInput = z.object({
   source: z.enum(["manual", "import", "credit_card"]).default("import"),
   isInvestment: z.boolean().default(false),
   bank: z.string().trim().max(60).nullable().optional(),
-  txns: z.array(z.object({
-    date: z.string(),
-    description: z.string(),
-    merchant: z.string().optional(),
-    amount: z.number().positive(),
-    transaction_type: z.enum(["credit", "debit"]),
-    category: z.string().min(1),
-    subcategory: z.string().optional(),
-    confidence: z.number().optional(),
-  })).min(1).max(5000),
+  txns: z
+    .array(
+      z.object({
+        date: z.string(),
+        description: z.string(),
+        merchant: z.string().optional(),
+        amount: z.number().positive(),
+        transaction_type: z.enum(["credit", "debit"]),
+        category: z.string().min(1),
+        subcategory: z.string().optional(),
+        confidence: z.number().optional(),
+      }),
+    )
+    .min(1)
+    .max(5000),
 });
 
 export const commitImport = createServerFn({ method: "POST" })
@@ -255,11 +297,22 @@ export const commitImport = createServerFn({ method: "POST" })
     const reqId = Math.random().toString(36).slice(2, 8);
     const kind = detectKind(data.fileName, data.fileType);
 
-    logStep(reqId, "commit-start", { count: data.txns.length, fileName: data.fileName, source: data.source, bank: data.bank });
+    logStep(reqId, "commit-start", {
+      count: data.txns.length,
+      fileName: data.fileName,
+      source: data.source,
+      bank: data.bank,
+    });
 
     const { data: fileRow, error: fileErr } = await supabase
       .from("uploaded_files")
-      .insert({ user_id: userId, file_name: data.fileName, file_type: kind, processed: false, bank: data.bank ?? null })
+      .insert({
+        user_id: userId,
+        file_name: data.fileName,
+        file_type: kind,
+        processed: false,
+        bank: data.bank ?? null,
+      })
       .select("id, import_batch")
       .single();
     if (fileErr || !fileRow) throw new Error(fileErr?.message ?? "Falha ao registrar arquivo");
@@ -282,18 +335,24 @@ export const commitImport = createServerFn({ method: "POST" })
     }));
     const { error: insertErr } = await supabase.from("transactions").insert(rows);
     if (insertErr) {
-      await supabase.from("uploaded_files").update({
-        processed: true,
-        observations: `Erro ao salvar: ${insertErr.message}`,
-      }).eq("id", fileRow.id);
+      await supabase
+        .from("uploaded_files")
+        .update({
+          processed: true,
+          observations: `Erro ao salvar: ${insertErr.message}`,
+        })
+        .eq("id", fileRow.id);
       throw new Error(`Erro ao salvar transações: ${insertErr.message}`);
     }
 
-    await supabase.from("uploaded_files").update({
-      processed: true,
-      records_found: rows.length,
-      observations: `${rows.length} transações importadas`,
-    }).eq("id", fileRow.id);
+    await supabase
+      .from("uploaded_files")
+      .update({
+        processed: true,
+        records_found: rows.length,
+        observations: `${rows.length} transações importadas`,
+      })
+      .eq("id", fileRow.id);
 
     logStep(reqId, "commit-done", { imported: rows.length });
     return { imported: rows.length, fileId: fileRow.id };
@@ -314,44 +373,74 @@ export const listUploads = createServerFn({ method: "GET" })
 
 export const updateUpload = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({
-    id: z.string().uuid(),
-    bank: z.string().trim().max(60).nullable().optional(),
-  }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        bank: z.string().trim().max(60).nullable().optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: file, error: fErr } = await supabase
-      .from("uploaded_files").select("import_batch").eq("id", data.id).eq("user_id", userId).single();
+      .from("uploaded_files")
+      .select("import_batch")
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .single();
     if (fErr || !file) throw new Error("Arquivo não encontrado");
     const patch: { bank?: string | null } = {};
     if (data.bank !== undefined) patch.bank = data.bank;
-    const { error } = await supabase.from("uploaded_files").update(patch).eq("id", data.id).eq("user_id", userId);
+    const { error } = await supabase
+      .from("uploaded_files")
+      .update(patch)
+      .eq("id", data.id)
+      .eq("user_id", userId);
     if (error) throw new Error(error.message);
     if (data.bank !== undefined && file.import_batch) {
-      await supabase.from("transactions").update({ bank: data.bank }).eq("user_id", userId).eq("import_batch", file.import_batch);
+      await supabase
+        .from("transactions")
+        .update({ bank: data.bank })
+        .eq("user_id", userId)
+        .eq("import_batch", file.import_batch);
     }
     return { ok: true };
   });
 
 export const deleteUpload = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({
-    id: z.string().uuid(),
-    deleteTransactions: z.boolean().default(true),
-  }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        deleteTransactions: z.boolean().default(true),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: file, error: fErr } = await supabase
-      .from("uploaded_files").select("id, import_batch").eq("id", data.id).eq("user_id", userId).single();
+      .from("uploaded_files")
+      .select("id, import_batch")
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .single();
     if (fErr || !file) throw new Error("Arquivo não encontrado");
     let deletedTxns = 0;
     if (data.deleteTransactions && file.import_batch) {
       const { count } = await supabase
-        .from("transactions").delete({ count: "exact" })
-        .eq("user_id", userId).eq("import_batch", file.import_batch);
+        .from("transactions")
+        .delete({ count: "exact" })
+        .eq("user_id", userId)
+        .eq("import_batch", file.import_batch);
       deletedTxns = count ?? 0;
     }
-    const { error: delErr } = await supabase.from("uploaded_files").delete().eq("id", data.id).eq("user_id", userId);
+    const { error: delErr } = await supabase
+      .from("uploaded_files")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
     if (delErr) throw new Error(delErr.message);
     return { ok: true, deletedTransactions: deletedTxns };
   });

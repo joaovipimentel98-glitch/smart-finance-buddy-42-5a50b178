@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
+    if (error || !data.user) throw redirect({ to: "/auth", search: { next: location.pathname } });
     return { user: data.user };
   },
   component: AppShell,
@@ -58,7 +58,9 @@ function NavList({ onNavigate, onSignOut }: { onNavigate?: () => void; onSignOut
           </div>
           <div className="min-w-0">
             <div className="gradient-text text-sm font-bold tracking-tight">Finance AI</div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">Controle financeiro pessoal</div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
+              Controle financeiro pessoal
+            </div>
           </div>
         </div>
       </div>
@@ -127,7 +129,7 @@ function AppShell() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.navigate({ to: "/auth" });
+    router.navigate({ to: "/auth", search: { next: "/" } });
   };
 
   return (

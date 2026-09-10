@@ -5,11 +5,13 @@ import { z } from "zod";
 export const listTransactions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      limit: z.number().int().min(1).max(500).default(100),
-      category: z.string().optional(),
-      search: z.string().optional(),
-    }).parse(d ?? {}),
+    z
+      .object({
+        limit: z.number().int().min(1).max(500).default(100),
+        category: z.string().optional(),
+        search: z.string().optional(),
+      })
+      .parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
     let q = context.supabase
@@ -28,12 +30,14 @@ export const listTransactions = createServerFn({ method: "GET" })
 export const updateTransactionCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      id: z.string().uuid(),
-      category: z.string().min(1),
-      subcategory: z.string().optional(),
-      createRule: z.boolean().default(true),
-    }).parse(d),
+    z
+      .object({
+        id: z.string().uuid(),
+        category: z.string().min(1),
+        subcategory: z.string().optional(),
+        createRule: z.boolean().default(true),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -55,7 +59,10 @@ export const updateTransactionCategory = createServerFn({ method: "POST" })
     if (data.createRule) {
       // Extract a token from merchant/description for the rule pattern
       const source = (tx.merchant ?? tx.description ?? "").toUpperCase();
-      const token = source.split(/[\s\-*]+/).filter((w) => w.length >= 3).slice(0, 1)[0];
+      const token = source
+        .split(/[\s\-*]+/)
+        .filter((w) => w.length >= 3)
+        .slice(0, 1)[0];
       if (token) {
         await supabase.from("category_rules").upsert(
           {

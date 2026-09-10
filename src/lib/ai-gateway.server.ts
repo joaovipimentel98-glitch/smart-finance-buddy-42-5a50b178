@@ -28,11 +28,16 @@ export function createLovableGateway(initialRunId?: string): LovableGateway {
   let logId: string | undefined;
   let resolved = false;
   let resolveIds: (v: { runId?: string; logId?: string }) => void = () => {};
-  const ready = new Promise<{ runId?: string; logId?: string }>((r) => { resolveIds = r; });
+  const ready = new Promise<{ runId?: string; logId?: string }>((r) => {
+    resolveIds = r;
+  });
   const publish = (r?: string, l?: string) => {
     if (!runId && r) runId = r;
     if (!logId && l) logId = l;
-    if (!resolved) { resolved = true; resolveIds({ runId, logId }); }
+    if (!resolved) {
+      resolved = true;
+      resolveIds({ runId, logId });
+    }
   };
 
   const provider = createOpenAICompatible({
@@ -44,7 +49,8 @@ export function createLovableGateway(initialRunId?: string): LovableGateway {
     },
     fetch: async (input, init) => {
       const headers = new Headers(init?.headers);
-      if (runId && !headers.has(LOVABLE_AIG_RUN_ID_HEADER)) headers.set(LOVABLE_AIG_RUN_ID_HEADER, runId);
+      if (runId && !headers.has(LOVABLE_AIG_RUN_ID_HEADER))
+        headers.set(LOVABLE_AIG_RUN_ID_HEADER, runId);
       try {
         const res = await fetch(input, { ...init, headers });
         publish(
@@ -153,7 +159,11 @@ export async function withCorrelationHeaders(
     if (gateway?.getRunId()) headers.set(LOVABLE_AIG_RUN_ID_HEADER, gateway.getRunId()!);
     if (gateway?.getLogId()) headers.set(LOVABLE_AIG_LOG_ID_HEADER, gateway.getLogId()!);
     appendExpose(headers);
-    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
   }
 
   const reader = response.body.getReader();
@@ -169,7 +179,10 @@ export async function withCorrelationHeaders(
     async start(controller) {
       try {
         const first = await firstChunk;
-        if (first.done) { controller.close(); return; }
+        if (first.done) {
+          controller.close();
+          return;
+        }
         controller.enqueue(first.value);
         while (true) {
           const c = await reader.read();
@@ -177,9 +190,13 @@ export async function withCorrelationHeaders(
           controller.enqueue(c.value);
         }
         controller.close();
-      } catch (e) { controller.error(e); }
+      } catch (e) {
+        controller.error(e);
+      }
     },
-    cancel(reason) { return reader.cancel(reason); },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
   });
 
   return new Response(body, { status: response.status, statusText: response.statusText, headers });
@@ -187,7 +204,10 @@ export async function withCorrelationHeaders(
 
 function appendExpose(headers: Headers) {
   const expose = new Set(
-    (headers.get("Access-Control-Expose-Headers") ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+    (headers.get("Access-Control-Expose-Headers") ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
   );
   expose.add(LOVABLE_AIG_RUN_ID_HEADER);
   expose.add(LOVABLE_AIG_LOG_ID_HEADER);

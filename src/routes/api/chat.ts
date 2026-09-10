@@ -4,7 +4,6 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
-
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
@@ -15,10 +14,14 @@ export const Route = createFileRoute("/api/chat")({
         const errorHeaders = (): HeadersInit => ({
           "Content-Type": "application/json",
           "X-Request-Id": requestId,
-          "Access-Control-Expose-Headers": "X-Request-Id, X-Lovable-AIG-Run-ID, X-Lovable-AIG-Log-ID",
+          "Access-Control-Expose-Headers":
+            "X-Request-Id, X-Lovable-AIG-Run-ID, X-Lovable-AIG-Log-ID",
         });
         const errorJson = (status: number, message: string) =>
-          new Response(JSON.stringify({ error: message, requestId }), { status, headers: errorHeaders() });
+          new Response(JSON.stringify({ error: message, requestId }), {
+            status,
+            headers: errorHeaders(),
+          });
 
         const authHeader = request.headers.get("authorization");
         if (!authHeader?.startsWith("Bearer ")) return errorJson(401, "Unauthorized");
@@ -36,11 +39,18 @@ export const Route = createFileRoute("/api/chat")({
 
         const MAX_BODY_BYTES = 256_000;
         const BodySchema = z.object({
-          messages: z.array(z.object({
-            id: z.string().optional(),
-            role: z.string().max(32),
-            parts: z.array(z.any()).max(50).optional(),
-          }).passthrough()).max(50).default([]),
+          messages: z
+            .array(
+              z
+                .object({
+                  id: z.string().optional(),
+                  role: z.string().max(32),
+                  parts: z.array(z.any()).max(50).optional(),
+                })
+                .passthrough(),
+            )
+            .max(50)
+            .default([]),
         });
         let parsedBody: z.infer<typeof BodySchema>;
         try {
@@ -54,7 +64,8 @@ export const Route = createFileRoute("/api/chat")({
         }
         const messages = parsedBody.messages as unknown as UIMessage[];
 
-        const { getChatModels, redactSecrets, withCorrelationHeaders } = await import("@/lib/ai-gateway.server");
+        const { getChatModels, redactSecrets, withCorrelationHeaders } =
+          await import("@/lib/ai-gateway.server");
         const candidates = getChatModels(incomingRunId);
 
         const tools = {
@@ -62,43 +73,59 @@ export const Route = createFileRoute("/api/chat")({
             description: "Retorna total gasto por categoria nos últimos N dias.",
             inputSchema: z.object({ days: z.number().int().min(1).max(3650).default(30) }),
             execute: async ({ days }) => {
-              const since = new Date(); since.setDate(since.getDate() - days);
+              const since = new Date();
+              since.setDate(since.getDate() - days);
               const { data } = await supabase
-                .from("transactions").select("category, amount, transaction_type")
-                .eq("user_id", userId).eq("transaction_type", "debit")
+                .from("transactions")
+                .select("category, amount, transaction_type")
+                .eq("user_id", userId)
+                .eq("transaction_type", "debit")
                 .gte("date", since.toISOString().slice(0, 10));
               const agg: Record<string, number> = {};
-              for (const r of data ?? []) agg[r.category] = (agg[r.category] ?? 0) + Number(r.amount);
-              return Object.entries(agg).map(([category, total]) => ({ category, total: Math.round(total * 100) / 100 }))
+              for (const r of data ?? [])
+                agg[r.category] = (agg[r.category] ?? 0) + Number(r.amount);
+              return Object.entries(agg)
+                .map(([category, total]) => ({ category, total: Math.round(total * 100) / 100 }))
                 .sort((a, b) => b.total - a.total);
             },
           }),
           getTopMerchants: tool({
             description: "Retorna os principais estabelecimentos por gasto nos últimos N dias.",
-            inputSchema: z.object({ days: z.number().int().min(1).max(3650).default(30), limit: z.number().int().min(1).max(50).default(10) }),
+            inputSchema: z.object({
+              days: z.number().int().min(1).max(3650).default(30),
+              limit: z.number().int().min(1).max(50).default(10),
+            }),
             execute: async ({ days, limit }) => {
-              const since = new Date(); since.setDate(since.getDate() - days);
+              const since = new Date();
+              since.setDate(since.getDate() - days);
               const { data } = await supabase
-                .from("transactions").select("merchant, description, amount, transaction_type")
-                .eq("user_id", userId).eq("transaction_type", "debit")
+                .from("transactions")
+                .select("merchant, description, amount, transaction_type")
+                .eq("user_id", userId)
+                .eq("transaction_type", "debit")
                 .gte("date", since.toISOString().slice(0, 10));
               const agg: Record<string, number> = {};
               for (const r of data ?? []) {
                 const k = r.merchant ?? r.description;
                 agg[k] = (agg[k] ?? 0) + Number(r.amount);
               }
-              return Object.entries(agg).map(([merchant, total]) => ({ merchant, total: Math.round(total * 100) / 100 }))
-                .sort((a, b) => b.total - a.total).slice(0, limit);
+              return Object.entries(agg)
+                .map(([merchant, total]) => ({ merchant, total: Math.round(total * 100) / 100 }))
+                .sort((a, b) => b.total - a.total)
+                .slice(0, limit);
             },
           }),
           getMonthlyTotals: tool({
             description: "Retorna totais de receita e despesa por mês.",
             inputSchema: z.object({ months: z.number().int().min(1).max(36).default(6) }),
             execute: async ({ months }) => {
-              const since = new Date(); since.setMonth(since.getMonth() - months);
+              const since = new Date();
+              since.setMonth(since.getMonth() - months);
               const { data } = await supabase
-                .from("transactions").select("date, amount, transaction_type")
-                .eq("user_id", userId).gte("date", since.toISOString().slice(0, 10));
+                .from("transactions")
+                .select("date, amount, transaction_type")
+                .eq("user_id", userId)
+                .gte("date", since.toISOString().slice(0, 10));
               const agg: Record<string, { income: number; expense: number }> = {};
               for (const r of data ?? []) {
                 const m = r.date.slice(0, 7);
@@ -106,21 +133,43 @@ export const Route = createFileRoute("/api/chat")({
                 if (r.transaction_type === "credit") agg[m].income += Number(r.amount);
                 else agg[m].expense += Number(r.amount);
               }
-              return Object.entries(agg).map(([month, v]) => ({ month, income: Math.round(v.income * 100) / 100, expense: Math.round(v.expense * 100) / 100, balance: Math.round((v.income - v.expense) * 100) / 100 }))
+              return Object.entries(agg)
+                .map(([month, v]) => ({
+                  month,
+                  income: Math.round(v.income * 100) / 100,
+                  expense: Math.round(v.expense * 100) / 100,
+                  balance: Math.round((v.income - v.expense) * 100) / 100,
+                }))
                 .sort((a, b) => a.month.localeCompare(b.month));
             },
           }),
           searchTransactions: tool({
-            description: "Busca transações por texto na descrição (ILIKE). Útil para perguntas como 'quanto gastei com iFood'.",
-            inputSchema: z.object({ query: z.string().min(1), days: z.number().int().min(1).max(3650).default(365) }),
+            description:
+              "Busca transações por texto na descrição (ILIKE). Útil para perguntas como 'quanto gastei com iFood'.",
+            inputSchema: z.object({
+              query: z.string().min(1),
+              days: z.number().int().min(1).max(3650).default(365),
+            }),
             execute: async ({ query, days }) => {
-              const since = new Date(); since.setDate(since.getDate() - days);
+              const since = new Date();
+              since.setDate(since.getDate() - days);
               const { data } = await supabase
-                .from("transactions").select("date, description, amount, transaction_type, category")
-                .eq("user_id", userId).gte("date", since.toISOString().slice(0, 10))
-                .ilike("description", `%${query}%`).order("date", { ascending: false }).limit(100);
-              const total = (data ?? []).reduce((s, r) => s + (r.transaction_type === "debit" ? Number(r.amount) : 0), 0);
-              return { count: data?.length ?? 0, total_debit: Math.round(total * 100) / 100, items: data ?? [] };
+                .from("transactions")
+                .select("date, description, amount, transaction_type, category")
+                .eq("user_id", userId)
+                .gte("date", since.toISOString().slice(0, 10))
+                .ilike("description", `%${query}%`)
+                .order("date", { ascending: false })
+                .limit(100);
+              const total = (data ?? []).reduce(
+                (s, r) => s + (r.transaction_type === "debit" ? Number(r.amount) : 0),
+                0,
+              );
+              return {
+                count: data?.length ?? 0,
+                total_debit: Math.round(total * 100) / 100,
+                items: data ?? [],
+              };
             },
           }),
         };
@@ -130,14 +179,19 @@ export const Route = createFileRoute("/api/chat")({
           try {
             const result = streamText({
               model,
-              system: "Você é um consultor financeiro pessoal em português brasileiro. Use as ferramentas para consultar os dados reais do usuário antes de responder. Valores em reais (R$). Seja direto e específico. Sempre responda em português.",
+              system:
+                "Você é um consultor financeiro pessoal em português brasileiro. Use as ferramentas para consultar os dados reais do usuário antes de responder. Valores em reais (R$). Seja direto e específico. Sempre responda em português.",
               messages: await convertToModelMessages(messages, {
                 tools,
                 ignoreIncompleteToolCalls: true,
               }),
               tools,
               stopWhen: stepCountIs(8),
-              onError: (e) => console.error(`[chat] ${label} req=${requestId} stream error:`, redactSecrets(e instanceof Error ? e.message : String(e))),
+              onError: (e) =>
+                console.error(
+                  `[chat] ${label} req=${requestId} stream error:`,
+                  redactSecrets(e instanceof Error ? e.message : String(e)),
+                ),
             });
             const streamRes = result.toUIMessageStreamResponse({ originalMessages: messages });
             return await withCorrelationHeaders(streamRes, gateway, {

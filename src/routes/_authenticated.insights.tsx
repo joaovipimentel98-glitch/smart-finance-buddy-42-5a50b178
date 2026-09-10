@@ -49,15 +49,23 @@ function InsightsPage() {
     <div className="p-6 md:p-10 max-w-5xl mx-auto">
       <header className="mb-6 flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-semibold flex items-center gap-2"><Sparkles className="size-7 text-primary" /> Consultor Financeiro IA</h1>
-          <p className="text-sm text-muted-foreground mt-1">Análises geradas pela IA com base nas suas transações dos últimos 90 dias.</p>
+          <h1 className="text-3xl font-semibold flex items-center gap-2">
+            <Sparkles className="size-7 text-primary" /> Consultor Financeiro IA
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Análises geradas pela IA com base nas suas transações dos últimos 90 dias.
+          </p>
         </div>
         <button
           onClick={run}
           disabled={generating}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
         >
-          {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+          {generating ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Sparkles className="size-4" />
+          )}
           {generating ? "Analisando..." : "Gerar novos insights"}
         </button>
       </header>
@@ -73,7 +81,9 @@ function InsightsPage() {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-medium text-foreground">{i.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{i.description}</p>
+                  <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                    {i.description}
+                  </p>
                 </div>
               </div>
             </div>
@@ -82,7 +92,9 @@ function InsightsPage() {
         {(!insights || insights.length === 0) && (
           <div className="md:col-span-2 surface-card p-12 text-center">
             <Sparkles className="size-10 mx-auto text-primary mb-3" />
-            <p className="text-muted-foreground">Clique em "Gerar novos insights" para a IA analisar suas finanças.</p>
+            <p className="text-muted-foreground">
+              Clique em "Gerar novos insights" para a IA analisar suas finanças.
+            </p>
           </div>
         )}
       </div>

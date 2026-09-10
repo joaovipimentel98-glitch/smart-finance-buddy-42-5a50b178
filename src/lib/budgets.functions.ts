@@ -63,14 +63,17 @@ export const getBudgetProgress = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z
-      .object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional() })
+      .object({
+        month: z
+          .string()
+          .regex(/^\d{4}-\d{2}$/)
+          .optional(),
+      })
       .parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
     const now = new Date();
-    const ym =
-      data.month ??
-      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const ym = data.month ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const [y, m] = ym.split("-").map(Number);
     const start = `${ym}-01`;
     const endDate = new Date(y, m, 1); // first day of next month
