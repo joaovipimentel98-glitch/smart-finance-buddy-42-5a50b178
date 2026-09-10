@@ -114,7 +114,7 @@ export const generateInsights = createServerFn({ method: "POST" })
       }
 
       // Brace/bracket balance check
-      const openCount = (body.match(/[{\[]/g) || []).length;
+      const openCount = (body.match(/[{[]/g) || []).length;
       const closeCount = (body.match(/[}\]]/g) || []).length;
       if (openCount !== closeCount) {
         throw new Error(`JSON desbalanceado (${openCount} aberturas / ${closeCount} fechamentos).`);

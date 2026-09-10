@@ -35,7 +35,7 @@ function normalizeDate(raw: string): string | null {
   const m1 = /^(\d{4})(\d{2})(\d{2})/.exec(s);
   if (m1) return `${m1[1]}-${m1[2]}-${m1[3]}`;
   // DD/MM/YYYY or DD-MM-YYYY
-  const m2 = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/.exec(s);
+  const m2 = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/.exec(s);
   if (m2) {
     const y = m2[3].length === 2 ? `20${m2[3]}` : m2[3];
     return `${y}-${m2[2].padStart(2, "0")}-${m2[1].padStart(2, "0")}`;
